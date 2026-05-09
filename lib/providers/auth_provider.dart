@@ -81,7 +81,7 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     if (nicknameTrimmed.isEmpty || passwordTrimmed.isEmpty) {
-      _errorMessage = 'Usuario y contrasena son obligatorios';
+      _errorMessage = 'Ingresa usuario y contrasena';
       _status = AuthStatus.unauthenticated;
       notifyListeners();
       return false;

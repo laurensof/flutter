@@ -49,18 +49,21 @@ class AuthService {
 
   Future<LoginResponse> login(String nickname, String password) async {
     final url = Uri.parse('$baseUrl/api/login');
+    final normalizedNickname = nickname.toLowerCase().trim();
+    final trimmedPassword = password.trim();
 
     try {
-      final response = await http
-          .post(
-            url,
-            headers: _headers,
-            body: jsonEncode({
-              'nickname': nickname.toLowerCase().trim(),
-              'password': password.trim(),
-            }),
-          )
-          .timeout(_timeout);
+      final jsonResponse = await _postLoginJson(
+        url,
+        normalizedNickname,
+        trimmedPassword,
+      );
+      final response = await _retryAsFormIfFieldsWereNotRead(
+        url,
+        jsonResponse,
+        normalizedNickname,
+        trimmedPassword,
+      );
 
       final decoded = _decodeJson(response.body);
       if (decoded == null) {
@@ -118,6 +121,63 @@ class AuthService {
     }
   }
 
+  Future<http.Response> _postLoginJson(
+    Uri url,
+    String nickname,
+    String password,
+  ) {
+    final body = {
+      'nickname': nickname,
+      'password': password,
+      'usuario': nickname,
+      'contrasena': password,
+    };
+
+    print(body);
+
+    return http
+        .post(
+          url,
+          headers: _headers,
+          body: jsonEncode(body),
+        )
+        .timeout(_timeout);
+  }
+
+  Future<http.Response> _retryAsFormIfFieldsWereNotRead(
+    Uri url,
+    http.Response response,
+    String nickname,
+    String password,
+  ) async {
+    if (!_looksLikeMissingFieldsResponse(response.body)) {
+      return response;
+    }
+
+    final formBody = {
+      'nickname': nickname,
+      'password': password,
+      'usuario': nickname,
+      'contrasena': password,
+    };
+
+    print(formBody);
+
+    return http
+        .post(
+          url,
+          headers: {
+            'Accept': 'application/json',
+            if (_authToken != null && _authToken!.isNotEmpty)
+              'Authorization': 'Bearer $_authToken',
+            if (_sessionCookie != null && _sessionCookie!.isNotEmpty)
+              'Cookie': _sessionCookie!,
+          },
+          body: formBody,
+        )
+        .timeout(_timeout);
+  }
+
   Future<void> logout() async {
     final url = Uri.parse('$baseUrl/api/logout');
 
@@ -163,6 +223,12 @@ class AuthService {
       return decoded;
     }
     return null;
+  }
+
+  bool _looksLikeMissingFieldsResponse(String body) {
+    final normalized = body.toLowerCase();
+    return normalized.contains('obligatorios') ||
+        normalized.contains('complete todos los campos');
   }
 
   String? _extractSessionCookie(String? setCookieHeader) {
