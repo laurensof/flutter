@@ -25,14 +25,14 @@ class LoginResponse {
     Map<String, dynamic> json, {
     String? sessionCookie,
   }) {
-    final userJson = json['usuario'] ?? json['user'] ?? json['admin'];
+    final userJson = json['user'] ?? json['usuario'] ?? json['admin'];
     final user = userJson is Map<String, dynamic>
         ? UserModel.fromJson(userJson)
         : null;
 
     return LoginResponse(
-      success: json['exito'] == true ||
-          json['success'] == true ||
+      success: json['success'] == true ||
+          json['exito'] == true ||
           json['ok'] == true,
       token: _parseString(json['token'] ?? json['access_token']),
       refreshToken: _parseString(json['refresh_token'] ?? json['refreshToken']),
@@ -40,7 +40,7 @@ class LoginResponse {
       user: user,
       role: _parseString(json['role'] ?? json['rol']) ?? user?.role,
       redirect: _parseString(json['redirect']) ?? user?.redirect,
-      message: _parseString(json['mensaje'] ?? json['message'] ?? json['error']),
+      message: _parseString(json['message'] ?? json['mensaje'] ?? json['error']),
     );
   }
 

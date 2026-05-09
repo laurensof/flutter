@@ -28,20 +28,12 @@ class _LoginViewState extends State<LoginView> {
   }
 
   Future<void> _iniciarSesion() async {
-    print(_usuarioController.text);
-    print(_contrasenaController.text);
-
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     final usuario = _usuarioController.text.trim();
     final contrasena = _contrasenaController.text.trim();
-
-    print('usuarioController.text: ${_usuarioController.text}');
-    print('passwordController.text: ${_contrasenaController.text}');
-    print('usuario enviado: $usuario');
-    print('password enviado: $contrasena');
 
     setState(() {
       _cargando = true;

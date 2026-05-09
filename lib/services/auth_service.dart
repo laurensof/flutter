@@ -1,5 +1,5 @@
+import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -17,11 +17,8 @@ class AuthService {
   static const String sessionCookieKey = 'session_cookie';
   static const String userKey = 'auth_user';
 
-  static const String baseUrl = String.fromEnvironment(
-    'API_BASE_URL',
-    defaultValue: 'https://api-oracle-production.up.railway.app',
-  );
-  static const Duration _timeout = Duration(seconds: 20);
+  static const String baseUrl = 'https://api-oracle-production.up.railway.app';
+  static const Duration _timeout = Duration(seconds: 15);
 
   final FlutterSecureStorage _storage;
 
@@ -38,7 +35,6 @@ class AuthService {
 
   Map<String, String> get _headers {
     return {
-      'Accept': 'application/json',
       'Content-Type': 'application/json',
       if (_authToken != null && _authToken!.isNotEmpty)
         'Authorization': 'Bearer $_authToken',
@@ -48,22 +44,28 @@ class AuthService {
   }
 
   Future<LoginResponse> login(String nickname, String password) async {
-    final url = Uri.parse('$baseUrl/api/login');
-    final normalizedNickname = nickname.toLowerCase().trim();
+    final url = Uri.parse('$baseUrl/login');
+    final normalizedNickname = nickname.trim();
     final trimmedPassword = password.trim();
+    final body = {
+      'username': normalizedNickname,
+      'password': trimmedPassword,
+    };
 
     try {
-      final jsonResponse = await _postLoginJson(
-        url,
-        normalizedNickname,
-        trimmedPassword,
-      );
-      final response = await _retryAsFormIfFieldsWereNotRead(
-        url,
-        jsonResponse,
-        normalizedNickname,
-        trimmedPassword,
-      );
+      print('LOGIN URL: $url');
+      print('LOGIN BODY: ${jsonEncode(body)}');
+
+      final response = await http
+          .post(
+            url,
+            headers: _headers,
+            body: jsonEncode(body),
+          )
+          .timeout(_timeout);
+
+      print('LOGIN STATUS CODE: ${response.statusCode}');
+      print('LOGIN RESPONSE BODY: ${response.body}');
 
       final decoded = _decodeJson(response.body);
       if (decoded == null) {
@@ -79,10 +81,28 @@ class AuthService {
         sessionCookie: cookie,
       );
 
-      if (response.statusCode == HttpStatus.unauthorized) {
+      if (response.statusCode == 401) {
         return LoginResponse(
           success: false,
           message: loginResponse.message ?? 'Credenciales incorrectas',
+        );
+      }
+
+      if (response.statusCode == 502 ||
+          response.statusCode == 503 ||
+          response.statusCode == 504) {
+        return LoginResponse(
+          success: false,
+          message: loginResponse.message ??
+              'La API en Railway no esta disponible en este momento.',
+        );
+      }
+
+      if (response.statusCode >= 500) {
+        return LoginResponse(
+          success: false,
+          message: loginResponse.message ??
+              'El servidor no pudo completar el login. Verifica Oracle.',
         );
       }
 
@@ -98,88 +118,32 @@ class AuthService {
         redirect: loginResponse.redirect,
         message: loginResponse.message,
       );
-    } on SocketException {
+    } on TimeoutException {
       return const LoginResponse(
         success: false,
-        message: 'No se pudo conectar con el servidor.',
+        message: 'Tiempo de espera agotado. Railway u Oracle no respondieron.',
       );
     } on http.ClientException {
       return const LoginResponse(
         success: false,
-        message: 'Error de comunicacion con el servidor.',
+        message: 'No se pudo conectar con la API en Railway.',
       );
     } on FormatException {
       return const LoginResponse(
         success: false,
         message: 'Respuesta invalida del servidor.',
       );
-    } catch (_) {
-      return const LoginResponse(
+    } catch (error) {
+      print('LOGIN ERROR: $error');
+      return LoginResponse(
         success: false,
-        message: 'No se pudo iniciar sesion. Intenta de nuevo.',
+        message: _connectionErrorMessage(error),
       );
     }
   }
 
-  Future<http.Response> _postLoginJson(
-    Uri url,
-    String nickname,
-    String password,
-  ) {
-    final body = {
-      'nickname': nickname,
-      'password': password,
-      'usuario': nickname,
-      'contrasena': password,
-    };
-
-    print(body);
-
-    return http
-        .post(
-          url,
-          headers: _headers,
-          body: jsonEncode(body),
-        )
-        .timeout(_timeout);
-  }
-
-  Future<http.Response> _retryAsFormIfFieldsWereNotRead(
-    Uri url,
-    http.Response response,
-    String nickname,
-    String password,
-  ) async {
-    if (!_looksLikeMissingFieldsResponse(response.body)) {
-      return response;
-    }
-
-    final formBody = {
-      'nickname': nickname,
-      'password': password,
-      'usuario': nickname,
-      'contrasena': password,
-    };
-
-    print(formBody);
-
-    return http
-        .post(
-          url,
-          headers: {
-            'Accept': 'application/json',
-            if (_authToken != null && _authToken!.isNotEmpty)
-              'Authorization': 'Bearer $_authToken',
-            if (_sessionCookie != null && _sessionCookie!.isNotEmpty)
-              'Cookie': _sessionCookie!,
-          },
-          body: formBody,
-        )
-        .timeout(_timeout);
-  }
-
   Future<void> logout() async {
-    final url = Uri.parse('$baseUrl/api/logout');
+    final url = Uri.parse('$baseUrl/logout');
 
     try {
       await http.get(url, headers: _headers).timeout(_timeout);
@@ -225,12 +189,6 @@ class AuthService {
     return null;
   }
 
-  bool _looksLikeMissingFieldsResponse(String body) {
-    final normalized = body.toLowerCase();
-    return normalized.contains('obligatorios') ||
-        normalized.contains('complete todos los campos');
-  }
-
   String? _extractSessionCookie(String? setCookieHeader) {
     if (setCookieHeader == null || setCookieHeader.isEmpty) {
       return null;
@@ -242,5 +200,16 @@ class AuthService {
     }
 
     return setCookieHeader.split(';').first.trim();
+  }
+
+  String _connectionErrorMessage(Object error) {
+    final text = error.toString().toLowerCase();
+    if (text.contains('socketexception') ||
+        text.contains('failed host lookup') ||
+        text.contains('connection refused') ||
+        text.contains('connection reset')) {
+      return 'No se pudo conectar con la API en Railway.';
+    }
+    return 'No se pudo iniciar sesion. Intenta de nuevo.';
   }
 }
