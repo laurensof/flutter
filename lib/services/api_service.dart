@@ -9,7 +9,7 @@ import '../models/login_response.dart';
 class ApiService {
   static const String baseUrl =
       'https://api-php-production-5399.up.railway.app';
-  static const Duration _timeout = Duration(seconds: 15);
+  static const Duration _timeout = Duration(seconds: 30);
 
   String? _authToken;
 
