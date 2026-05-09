@@ -8,16 +8,15 @@ import '../models/login_response.dart';
 import '../models/user_model.dart';
 
 class AuthService {
-  AuthService({
-    FlutterSecureStorage? storage,
-  }) : _storage = storage ?? const FlutterSecureStorage();
+  AuthService({FlutterSecureStorage? storage})
+    : _storage = storage ?? const FlutterSecureStorage();
 
   static const String authTokenKey = 'auth_token';
   static const String refreshTokenKey = 'refresh_token';
   static const String sessionCookieKey = 'session_cookie';
   static const String userKey = 'auth_user';
 
-  static const String baseUrl = 'https://api-oracle-production.up.railway.app';
+  static const String baseUrl = 'https://api-oracle-.up.railway.app';
   static const Duration _timeout = Duration(seconds: 15);
 
   final FlutterSecureStorage _storage;
@@ -47,21 +46,14 @@ class AuthService {
     final url = Uri.parse('$baseUrl/login');
     final normalizedNickname = nickname.trim();
     final trimmedPassword = password.trim();
-    final body = {
-      'username': normalizedNickname,
-      'password': trimmedPassword,
-    };
+    final body = {'username': normalizedNickname, 'password': trimmedPassword};
 
     try {
       print('LOGIN URL: $url');
       print('LOGIN BODY: ${jsonEncode(body)}');
 
       final response = await http
-          .post(
-            url,
-            headers: _headers,
-            body: jsonEncode(body),
-          )
+          .post(url, headers: _headers, body: jsonEncode(body))
           .timeout(_timeout);
 
       print('LOGIN STATUS CODE: ${response.statusCode}');
@@ -93,7 +85,8 @@ class AuthService {
           response.statusCode == 504) {
         return LoginResponse(
           success: false,
-          message: loginResponse.message ??
+          message:
+              loginResponse.message ??
               'La API en Railway no esta disponible en este momento.',
         );
       }
@@ -101,13 +94,15 @@ class AuthService {
       if (response.statusCode >= 500) {
         return LoginResponse(
           success: false,
-          message: loginResponse.message ??
+          message:
+              loginResponse.message ??
               'El servidor no pudo completar el login. Verifica Oracle.',
         );
       }
 
       return LoginResponse(
-        success: response.statusCode >= 200 &&
+        success:
+            response.statusCode >= 200 &&
             response.statusCode < 300 &&
             loginResponse.success,
         token: loginResponse.token,
