@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../providers/auth_provider.dart';
 
 class DashboardView extends StatelessWidget {
   const DashboardView({super.key});
@@ -8,12 +11,51 @@ class DashboardView extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Dashboard'),
+        actions: [
+          IconButton(
+            tooltip: 'Cerrar sesion',
+            onPressed: () async {
+              await context.read<AuthProvider>().logout();
+            },
+            icon: const Icon(Icons.logout),
+          ),
+        ],
       ),
-      body: const Center(
-        child: Text(
-          'Bienvenido al panel administrador',
-          style: TextStyle(fontSize: 20),
-        ),
+      body: Consumer<AuthProvider>(
+        builder: (context, authProvider, _) {
+          final user = authProvider.user;
+
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.admin_panel_settings,
+                    size: 72,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    user?.nombre != null
+                        ? 'Bienvenido, ${user!.nombre}'
+                        : 'Bienvenido al panel administrador',
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.headlineSmall,
+                  ),
+                  if (user?.rol != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      user!.rol!,
+                      style: Theme.of(context).textTheme.bodyLarge,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
       ),
     );
   }

@@ -1,0 +1,122 @@
+import 'dart:convert';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../models/login_response.dart';
+import '../models/user_model.dart';
+import '../services/api_service.dart';
+
+enum AuthStatus {
+  checking,
+  authenticated,
+  unauthenticated,
+}
+
+class AuthProvider extends ChangeNotifier {
+  AuthProvider({
+    ApiService? apiService,
+    FlutterSecureStorage? storage,
+  })  : _apiService = apiService ?? ApiService(),
+        _storage = storage ?? const FlutterSecureStorage();
+
+  static const String _tokenKey = 'auth_token';
+  static const String _refreshTokenKey = 'refresh_token';
+  static const String _userKey = 'auth_user';
+
+  final ApiService _apiService;
+  final FlutterSecureStorage _storage;
+
+  AuthStatus _status = AuthStatus.checking;
+  UserModel? _user;
+  String? _token;
+  String? _refreshToken;
+  String? _errorMessage;
+
+  AuthStatus get status => _status;
+  UserModel? get user => _user;
+  String? get token => _token;
+  String? get refreshToken => _refreshToken;
+  String? get errorMessage => _errorMessage;
+  bool get isAuthenticated => _status == AuthStatus.authenticated;
+
+  Future<void> initialize() async {
+    _status = AuthStatus.checking;
+    notifyListeners();
+
+    _token = await _storage.read(key: _tokenKey);
+    _refreshToken = await _storage.read(key: _refreshTokenKey);
+
+    final userJson = await _storage.read(key: _userKey);
+    if (userJson != null && userJson.isNotEmpty) {
+      try {
+        _user = UserModel.fromJson(jsonDecode(userJson) as Map<String, dynamic>);
+      } catch (_) {
+        await _storage.delete(key: _userKey);
+        _user = null;
+      }
+    }
+
+    _apiService.setAuthToken(_token);
+    _status = (_token != null && _token!.isNotEmpty) || _user != null
+        ? AuthStatus.authenticated
+        : AuthStatus.unauthenticated;
+    notifyListeners();
+  }
+
+  Future<bool> login(String usuario, String contrasena) async {
+    _errorMessage = null;
+    notifyListeners();
+
+    final response = await _apiService.login(usuario, contrasena);
+    if (!response.success || response.data == null || !response.data!.success) {
+      _errorMessage =
+          response.message ?? response.data?.message ?? 'Usuario o contrasena incorrectos';
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return false;
+    }
+
+    await _persistSession(response.data!);
+    _status = AuthStatus.authenticated;
+    notifyListeners();
+    return true;
+  }
+
+  Future<void> logout() async {
+    await _apiService.logout();
+    await _clearSession();
+    _status = AuthStatus.unauthenticated;
+    notifyListeners();
+  }
+
+  Future<void> _persistSession(LoginResponse loginResponse) async {
+    _token = loginResponse.token;
+    _refreshToken = loginResponse.refreshToken;
+    _user = loginResponse.user;
+
+    _apiService.setAuthToken(_token);
+
+    if (_token != null) {
+      await _storage.write(key: _tokenKey, value: _token);
+    }
+    if (_refreshToken != null) {
+      await _storage.write(key: _refreshTokenKey, value: _refreshToken);
+    }
+    if (_user != null) {
+      await _storage.write(key: _userKey, value: jsonEncode(_user!.toJson()));
+    }
+  }
+
+  Future<void> _clearSession() async {
+    _token = null;
+    _refreshToken = null;
+    _user = null;
+    _errorMessage = null;
+    _apiService.setAuthToken(null);
+
+    await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _refreshTokenKey);
+    await _storage.delete(key: _userKey);
+  }
+}

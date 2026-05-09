@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../controllers/login_controller.dart';
+import '../providers/auth_provider.dart';
 import 'dashboard_view.dart';
 
 class LoginView extends StatefulWidget {
@@ -11,7 +12,6 @@ class LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<LoginView> {
-  final LoginController _loginController = LoginController();
   final TextEditingController _usuarioController = TextEditingController();
   final TextEditingController _contrasenaController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
@@ -35,7 +35,8 @@ class _LoginViewState extends State<LoginView> {
       _cargando = true;
     });
 
-    final loginCorrecto = await _loginController.iniciarSesion(
+    final authProvider = context.read<AuthProvider>();
+    final loginCorrecto = await authProvider.login(
       _usuarioController.text.trim(),
       _contrasenaController.text.trim(),
     );
@@ -59,8 +60,10 @@ class _LoginViewState extends State<LoginView> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Usuario o contraseña incorrectos'),
+      SnackBar(
+        content: Text(
+          authProvider.errorMessage ?? 'Usuario o contrasena incorrectos',
+        ),
         backgroundColor: Colors.red,
       ),
     );
@@ -95,7 +98,7 @@ class _LoginViewState extends State<LoginView> {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Inicia sesión para continuar',
+                    'Inicia sesion para continuar',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -124,7 +127,7 @@ class _LoginViewState extends State<LoginView> {
                     enabled: !_cargando,
                     obscureText: _ocultarContrasena,
                     decoration: InputDecoration(
-                      labelText: 'Contraseña',
+                      labelText: 'Contrasena',
                       prefixIcon: const Icon(Icons.lock),
                       border: const OutlineInputBorder(),
                       suffixIcon: IconButton(
@@ -142,7 +145,7 @@ class _LoginViewState extends State<LoginView> {
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Ingresa tu contraseña';
+                        return 'Ingresa tu contrasena';
                       }
                       return null;
                     },

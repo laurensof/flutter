@@ -8,6 +8,7 @@ class LoginController {
       return false;
     }
 
-    return await apiService.login(usuario, contrasena);
+    final response = await apiService.login(usuario, contrasena);
+    return response.success;
   }
 }
