@@ -73,11 +73,21 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> login(String usuario, String contrasena) async {
+  Future<bool> login(String nickname, String password) async {
+    final nicknameTrimmed = nickname.trim();
+    final passwordTrimmed = password.trim();
+
     _errorMessage = null;
     notifyListeners();
 
-    final response = await _authService.login(usuario, contrasena);
+    if (nicknameTrimmed.isEmpty || passwordTrimmed.isEmpty) {
+      _errorMessage = 'Usuario y contrasena son obligatorios';
+      _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return false;
+    }
+
+    final response = await _authService.login(nicknameTrimmed, passwordTrimmed);
     if (!response.success) {
       _errorMessage = response.message ?? 'Credenciales incorrectas';
       _status = AuthStatus.unauthenticated;

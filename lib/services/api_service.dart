@@ -26,8 +26,8 @@ class ApiService {
   }
 
   Future<ApiResponse<LoginResponse>> login(
-    String usuario,
-    String contrasena,
+    String nickname,
+    String password,
   ) async {
     final url = Uri.parse('$baseUrl/api/login');
 
@@ -37,8 +37,8 @@ class ApiService {
             url,
             headers: _headers,
             body: jsonEncode({
-              'usuario': usuario,
-              'contrasena': contrasena,
+              'nickname': nickname.toLowerCase().trim(),
+              'password': password.trim(),
             }),
           )
           .timeout(_timeout);

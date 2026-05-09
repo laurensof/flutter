@@ -28,9 +28,15 @@ class _LoginViewState extends State<LoginView> {
   }
 
   Future<void> _iniciarSesion() async {
+    print(_usuarioController.text);
+    print(_contrasenaController.text);
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
+
+    final usuario = _usuarioController.text.trim();
+    final contrasena = _contrasenaController.text.trim();
 
     setState(() {
       _cargando = true;
@@ -38,8 +44,8 @@ class _LoginViewState extends State<LoginView> {
 
     final authProvider = context.read<AuthProvider>();
     final loginCorrecto = await authProvider.login(
-      _usuarioController.text.trim(),
-      _contrasenaController.text.trim(),
+      usuario,
+      contrasena,
     );
 
     if (!mounted) {
@@ -126,7 +132,7 @@ class _LoginViewState extends State<LoginView> {
                       border: OutlineInputBorder(),
                     ),
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
+                      if (_usuarioController.text.trim().isEmpty) {
                         return 'Ingresa tu nickname';
                       }
                       return null;
@@ -155,7 +161,7 @@ class _LoginViewState extends State<LoginView> {
                       ),
                     ),
                     validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
+                      if (_contrasenaController.text.trim().isEmpty) {
                         return 'Ingresa tu contrasena';
                       }
                       return null;

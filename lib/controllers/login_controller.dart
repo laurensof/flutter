@@ -1,14 +1,14 @@
-import '../services/api_service.dart';
+import '../services/auth_service.dart';
 
 class LoginController {
-  final ApiService apiService = ApiService();
+  final AuthService authService = AuthService();
 
-  Future<bool> iniciarSesion(String usuario, String contrasena) async {
-    if (usuario.isEmpty || contrasena.isEmpty) {
+  Future<bool> iniciarSesion(String nickname, String password) async {
+    if (nickname.trim().isEmpty || password.trim().isEmpty) {
       return false;
     }
 
-    final response = await apiService.login(usuario, contrasena);
+    final response = await authService.login(nickname, password);
     return response.success;
   }
 }
