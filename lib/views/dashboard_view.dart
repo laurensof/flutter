@@ -24,6 +24,7 @@ class DashboardView extends StatelessWidget {
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.user;
+          final nombre = user?.nombreCompleto ?? user?.nombre;
 
           return Center(
             child: Padding(
@@ -38,8 +39,8 @@ class DashboardView extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    user?.nombre != null
-                        ? 'Bienvenido, ${user!.nombre}'
+                    nombre != null
+                        ? 'Bienvenido, $nombre'
                         : 'Bienvenido al panel administrador',
                     textAlign: TextAlign.center,
                     style: Theme.of(context).textTheme.headlineSmall,

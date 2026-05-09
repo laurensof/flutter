@@ -5,7 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/login_response.dart';
 import '../models/user_model.dart';
-import '../services/api_service.dart';
+import '../services/auth_service.dart';
 
 enum AuthStatus {
   checking,
@@ -15,28 +15,33 @@ enum AuthStatus {
 
 class AuthProvider extends ChangeNotifier {
   AuthProvider({
-    ApiService? apiService,
+    AuthService? authService,
     FlutterSecureStorage? storage,
-  })  : _apiService = apiService ?? ApiService(),
+  })  : _authService = authService ?? AuthService(storage: storage),
         _storage = storage ?? const FlutterSecureStorage();
 
-  static const String _tokenKey = 'auth_token';
-  static const String _refreshTokenKey = 'refresh_token';
-  static const String _userKey = 'auth_user';
+  static const String _tokenKey = AuthService.authTokenKey;
+  static const String _refreshTokenKey = AuthService.refreshTokenKey;
+  static const String _sessionCookieKey = AuthService.sessionCookieKey;
+  static const String _userKey = AuthService.userKey;
 
-  final ApiService _apiService;
+  final AuthService _authService;
   final FlutterSecureStorage _storage;
 
   AuthStatus _status = AuthStatus.checking;
   UserModel? _user;
   String? _token;
   String? _refreshToken;
+  String? _sessionCookie;
   String? _errorMessage;
 
   AuthStatus get status => _status;
   UserModel? get user => _user;
   String? get token => _token;
   String? get refreshToken => _refreshToken;
+  String? get sessionCookie => _sessionCookie;
+  String? get role => _user?.role;
+  bool get isAdmin => _user?.isAdmin == true;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
 
@@ -46,6 +51,7 @@ class AuthProvider extends ChangeNotifier {
 
     _token = await _storage.read(key: _tokenKey);
     _refreshToken = await _storage.read(key: _refreshTokenKey);
+    _sessionCookie = await _storage.read(key: _sessionCookieKey);
 
     final userJson = await _storage.read(key: _userKey);
     if (userJson != null && userJson.isNotEmpty) {
@@ -57,8 +63,11 @@ class AuthProvider extends ChangeNotifier {
       }
     }
 
-    _apiService.setAuthToken(_token);
-    _status = (_token != null && _token!.isNotEmpty) || _user != null
+    _authService.setAuthToken(_token);
+    _authService.setSessionCookie(_sessionCookie);
+    _status = (_token != null && _token!.isNotEmpty) ||
+            (_sessionCookie != null && _sessionCookie!.isNotEmpty) ||
+            _user != null
         ? AuthStatus.authenticated
         : AuthStatus.unauthenticated;
     notifyListeners();
@@ -68,23 +77,22 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    final response = await _apiService.login(usuario, contrasena);
-    if (!response.success || response.data == null || !response.data!.success) {
-      _errorMessage =
-          response.message ?? response.data?.message ?? 'Usuario o contrasena incorrectos';
+    final response = await _authService.login(usuario, contrasena);
+    if (!response.success) {
+      _errorMessage = response.message ?? 'Credenciales incorrectas';
       _status = AuthStatus.unauthenticated;
       notifyListeners();
       return false;
     }
 
-    await _persistSession(response.data!);
+    await _persistSession(response);
     _status = AuthStatus.authenticated;
     notifyListeners();
     return true;
   }
 
   Future<void> logout() async {
-    await _apiService.logout();
+    await _authService.logout();
     await _clearSession();
     _status = AuthStatus.unauthenticated;
     notifyListeners();
@@ -93,15 +101,20 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _persistSession(LoginResponse loginResponse) async {
     _token = loginResponse.token;
     _refreshToken = loginResponse.refreshToken;
+    _sessionCookie = loginResponse.sessionCookie;
     _user = loginResponse.user;
 
-    _apiService.setAuthToken(_token);
+    _authService.setAuthToken(_token);
+    _authService.setSessionCookie(_sessionCookie);
 
     if (_token != null) {
       await _storage.write(key: _tokenKey, value: _token);
     }
     if (_refreshToken != null) {
       await _storage.write(key: _refreshTokenKey, value: _refreshToken);
+    }
+    if (_sessionCookie != null) {
+      await _storage.write(key: _sessionCookieKey, value: _sessionCookie);
     }
     if (_user != null) {
       await _storage.write(key: _userKey, value: jsonEncode(_user!.toJson()));
@@ -111,12 +124,15 @@ class AuthProvider extends ChangeNotifier {
   Future<void> _clearSession() async {
     _token = null;
     _refreshToken = null;
+    _sessionCookie = null;
     _user = null;
     _errorMessage = null;
-    _apiService.setAuthToken(null);
+    _authService.setAuthToken(null);
+    _authService.setSessionCookie(null);
 
     await _storage.delete(key: _tokenKey);
     await _storage.delete(key: _refreshTokenKey);
+    await _storage.delete(key: _sessionCookieKey);
     await _storage.delete(key: _userKey);
   }
 }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'views/dashboard_view.dart';
 import 'views/login_view.dart';
+import 'views/tienda_view.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +33,7 @@ class MyApp extends StatelessWidget {
         AppRoutes.dashboard: (_) => const ProtectedRoute(
               child: DashboardView(),
             ),
+        AppRoutes.tienda: (_) => const TiendaView(),
       },
       home: const AuthGate(),
     );
@@ -41,6 +43,7 @@ class MyApp extends StatelessWidget {
 class AppRoutes {
   static const String login = '/login';
   static const String dashboard = '/dashboard';
+  static const String tienda = '/tienda';
 }
 
 class AuthGate extends StatelessWidget {
@@ -48,7 +51,8 @@ class AuthGate extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final authStatus = context.watch<AuthProvider>().status;
+    final authProvider = context.watch<AuthProvider>();
+    final authStatus = authProvider.status;
 
     if (authStatus == AuthStatus.checking) {
       return const Scaffold(
@@ -59,7 +63,7 @@ class AuthGate extends StatelessWidget {
     }
 
     if (authStatus == AuthStatus.authenticated) {
-      return const DashboardView();
+      return authProvider.isAdmin ? const DashboardView() : const TiendaView();
     }
 
     return const LoginView();

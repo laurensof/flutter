@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
 import 'dashboard_view.dart';
+import 'tienda_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -50,10 +51,14 @@ class _LoginViewState extends State<LoginView> {
     });
 
     if (loginCorrecto) {
+      final destino = authProvider.isAdmin
+          ? const DashboardView()
+          : const TiendaView();
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (_) => const DashboardView(),
+          builder: (_) => destino,
         ),
       );
       return;
@@ -66,6 +71,12 @@ class _LoginViewState extends State<LoginView> {
         ),
         backgroundColor: Colors.red,
       ),
+    );
+  }
+
+  void _mostrarPendiente(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje)),
     );
   }
 
@@ -83,13 +94,13 @@ class _LoginViewState extends State<LoginView> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Icon(
-                    Icons.admin_panel_settings,
+                    Icons.storefront,
                     size: 90,
-                    color: Colors.blue,
+                    color: Colors.teal,
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'Panel Administrador',
+                    'NAYLEX Store',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 28,
@@ -110,13 +121,13 @@ class _LoginViewState extends State<LoginView> {
                     controller: _usuarioController,
                     enabled: !_cargando,
                     decoration: const InputDecoration(
-                      labelText: 'Usuario',
+                      labelText: 'Usuario o nickname',
                       prefixIcon: Icon(Icons.person),
                       border: OutlineInputBorder(),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Ingresa tu usuario';
+                        return 'Ingresa tu nickname';
                       }
                       return null;
                     },
@@ -170,6 +181,43 @@ class _LoginViewState extends State<LoginView> {
                               style: TextStyle(fontSize: 16),
                             ),
                     ),
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      TextButton(
+                        onPressed: _cargando
+                            ? null
+                            : () => _mostrarPendiente(
+                                  'Registro disponible desde el backend web.',
+                                ),
+                        child: const Text('Registro'),
+                      ),
+                      TextButton(
+                        onPressed: _cargando
+                            ? null
+                            : () => _mostrarPendiente(
+                                  'Recuperacion de contrasena pendiente.',
+                                ),
+                        child: const Text('Recuperar contrasena'),
+                      ),
+                      TextButton(
+                        onPressed: _cargando
+                            ? null
+                            : () {
+                                Navigator.pushReplacement(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => const TiendaView(),
+                                  ),
+                                );
+                              },
+                        child: const Text('Volver a tienda'),
+                      ),
+                    ],
                   ),
                 ],
               ),
