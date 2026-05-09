@@ -29,25 +29,23 @@ class ApiService {
     String password,
   ) async {
     final url = Uri.parse('$baseUrl/login');
-    final body = {
-      'username': nickname.trim(),
-      'password': password.trim(),
-    };
+    final usuario = nickname.trim();
+    final body = {'username': usuario, 'password': password.trim()};
 
     try {
-      print('LOGIN URL: $url');
-      print('LOGIN BODY: ${jsonEncode(body)}');
+      print('========== LOGIN REQUEST ==========');
+      print('URL: $url');
+      print('USERNAME: $usuario');
+      print('===================================');
 
       final response = await http
-          .post(
-            url,
-            headers: _headers,
-            body: jsonEncode(body),
-          )
+          .post(url, headers: _headers, body: jsonEncode(body))
           .timeout(_timeout);
 
-      print('LOGIN STATUS CODE: ${response.statusCode}');
-      print('LOGIN RESPONSE BODY: ${response.body}');
+      print('========== LOGIN RESPONSE ==========');
+      print('STATUS CODE: ${response.statusCode}');
+      print('BODY: ${response.body}');
+      print('===================================');
 
       final decoded = _decodeJson(response.body);
       if (decoded == null) {
@@ -60,8 +58,9 @@ class ApiService {
 
       final loginResponse = LoginResponse.fromJson(decoded);
       return ApiResponse(
-        success: response.statusCode >= 200 &&
-          response.statusCode < 300 &&
+        success:
+            response.statusCode >= 200 &&
+            response.statusCode < 300 &&
             loginResponse.success,
         data: loginResponse,
         statusCode: response.statusCode,
@@ -77,17 +76,21 @@ class ApiService {
         success: false,
         message: 'No se pudo conectar con la API en Railway.',
       );
-    } on FormatException {
+    } on FormatException catch (e, stackTrace) {
+      print('========== LOGIN ERROR ==========');
+      print(e.toString());
+      print(stackTrace.toString());
+      print('================================');
       return const ApiResponse(
         success: false,
         message: 'Respuesta invalida del servidor.',
       );
-    } catch (error) {
-      print('LOGIN ERROR: $error');
-      return ApiResponse(
-        success: false,
-        message: _connectionErrorMessage(error),
-      );
+    } catch (e, stackTrace) {
+      print('========== LOGIN ERROR ==========');
+      print(e.toString());
+      print(stackTrace.toString());
+      print('================================');
+      return ApiResponse(success: false, message: _connectionErrorMessage(e));
     }
   }
 
@@ -96,10 +99,7 @@ class ApiService {
 
     try {
       final response = await http
-          .post(
-            url,
-            headers: _headers,
-          )
+          .post(url, headers: _headers)
           .timeout(_timeout);
 
       return ApiResponse(
@@ -126,7 +126,8 @@ class ApiService {
 
   String _messageForStatus(int statusCode, String? apiMessage) {
     if (statusCode == 502 || statusCode == 503 || statusCode == 504) {
-      return apiMessage ?? 'La API en Railway no esta disponible en este momento.';
+      return apiMessage ??
+          'La API en Railway no esta disponible en este momento.';
     }
     if (statusCode >= 500) {
       return apiMessage ??
