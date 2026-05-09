@@ -16,8 +16,9 @@ class AuthService {
   static const String sessionCookieKey = 'session_cookie';
   static const String userKey = 'auth_user';
 
-  static const String baseUrl = 'https://api-oracle-.up.railway.app';
-  static const Duration _timeout = Duration(seconds: 15);
+  static const String baseUrl =
+      'https://api-php-production-5399.up.railway.app';
+  static const Duration _timeout = Duration(seconds: 30);
 
   final FlutterSecureStorage _storage;
 
