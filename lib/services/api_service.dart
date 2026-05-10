@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/api_response.dart';
 import '../models/login_response.dart';
+import '../models/reporte_model.dart';
 
 class ApiService {
   static const String baseUrl =
@@ -112,6 +113,54 @@ class ApiService {
     }
   }
 
+  Future<ApiResponse<List<ReporteModel>>> getReportes() async {
+    final url = Uri.parse('$baseUrl/reportes');
+
+    try {
+      final response = await http.get(url, headers: _headers).timeout(_timeout);
+      final decoded = _decodeJson(response.body);
+
+      if (decoded == null) {
+        return ApiResponse(
+          success: false,
+          statusCode: response.statusCode,
+          message: 'El backend no devolvio un JSON valido.',
+        );
+      }
+
+      final reportesJson = _extractReportesList(decoded);
+      final reportes = reportesJson
+          .whereType<Map<String, dynamic>>()
+          .map(ReporteModel.fromJson)
+          .toList();
+
+      return ApiResponse(
+        success: response.statusCode >= 200 && response.statusCode < 300,
+        data: reportes,
+        statusCode: response.statusCode,
+        message:
+            _parseMessage(decoded) ?? _messageForStatus(response.statusCode, null),
+      );
+    } on TimeoutException {
+      return const ApiResponse(
+        success: false,
+        message: 'Tiempo de espera agotado consultando reportes.',
+      );
+    } on http.ClientException {
+      return const ApiResponse(
+        success: false,
+        message: 'No se pudo conectar con la API en Railway.',
+      );
+    } on FormatException {
+      return const ApiResponse(
+        success: false,
+        message: 'Respuesta invalida del servidor.',
+      );
+    } catch (e) {
+      return ApiResponse(success: false, message: _connectionErrorMessage(e));
+    }
+  }
+
   Map<String, dynamic>? _decodeJson(String body) {
     final trimmedBody = body.trim();
     if (trimmedBody.isEmpty) {
@@ -135,6 +184,37 @@ class ApiService {
           'El servidor no pudo completar el login. Verifica Oracle.';
     }
     return apiMessage ?? 'Credenciales incorrectas';
+  }
+
+  List<dynamic> _extractReportesList(Map<String, dynamic> json) {
+    final data = json['data'];
+    if (json['reportes'] is List) {
+      return json['reportes'] as List<dynamic>;
+    }
+    if (json['resumen'] is List) {
+      return json['resumen'] as List<dynamic>;
+    }
+    if (data is Map<String, dynamic>) {
+      if (data['reportes'] is List) {
+        return data['reportes'] as List<dynamic>;
+      }
+      if (data['resumen'] is List) {
+        return data['resumen'] as List<dynamic>;
+      }
+    }
+    if (data is List) {
+      return data;
+    }
+    return const [];
+  }
+
+  String? _parseMessage(Map<String, dynamic> json) {
+    final value = json['message'] ?? json['mensaje'] ?? json['error'];
+    if (value == null) {
+      return null;
+    }
+    final text = value.toString().trim();
+    return text.isEmpty ? null : text;
   }
 
   String _connectionErrorMessage(Object error) {
