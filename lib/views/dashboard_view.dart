@@ -1732,7 +1732,8 @@ class _ProductosListState extends State<_ProductosList> {
       itemBuilder: (context, item) {
         return _RegistroListTile(
           title: item.nombre,
-          subtitle: '${item.categoria ?? 'Sin categoria'} · Stock ${item.stock}',
+          subtitle:
+              '${item.codigo.isEmpty ? 'Sin codigo' : item.codigo} · ${item.categoria ?? 'Sin categoria'} · Stock ${item.stock}',
           trailing: '\$${item.precio.toStringAsFixed(2)}',
           onEdit: () => widget.onEdit(item),
         );
@@ -1819,7 +1820,8 @@ class _RegistroListScaffold<T> extends StatelessWidget {
               );
             }
             final normalizedQuery = query.toLowerCase().trim();
-            final items = (snapshot.data ?? const <T>[])
+            final sourceItems = snapshot.data ?? <T>[];
+            final items = sourceItems
                 .where((item) =>
                     normalizedQuery.isEmpty || filter(item, normalizedQuery))
                 .toList();
@@ -2103,9 +2105,21 @@ class _ProductoFormState extends State<_ProductoForm> {
             FutureBuilder<List<CategoriaRegistroModel>>(
               future: _categoriasFuture,
               builder: (context, snapshot) {
-                final categorias = snapshot.data ?? const [];
+                final categorias = _uniqueCategorias(snapshot.data ?? const []);
+                final selectedCategory = categorias.any(
+                  (categoria) => categoria.idCategoria == _idCategoria,
+                )
+                    ? _idCategoria
+                    : null;
+                if (_idCategoria != null && selectedCategory == null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted) {
+                      setState(() => _idCategoria = null);
+                    }
+                  });
+                }
                 return DropdownButtonFormField<int>(
-                  value: _idCategoria,
+                  value: selectedCategory,
                   decoration: _inputDecoration('Categoria'),
                   items: [
                     for (final categoria in categorias)
@@ -2140,6 +2154,16 @@ class _ProductoFormState extends State<_ProductoForm> {
         ),
       ),
     );
+  }
+
+  List<CategoriaRegistroModel> _uniqueCategorias(
+    List<CategoriaRegistroModel> categorias,
+  ) {
+    final seen = <int>{};
+    return [
+      for (final categoria in categorias)
+        if (seen.add(categoria.idCategoria)) categoria,
+    ];
   }
 }
 
@@ -2250,8 +2274,11 @@ class _EstadoDropdown extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final selectedValue = value == 'ACTIVO' || value == 'INACTIVO'
+        ? value
+        : 'ACTIVO';
     return DropdownButtonFormField<String>(
-      value: value,
+      value: selectedValue,
       decoration: _inputDecoration('Estado'),
       items: const [
         DropdownMenuItem(value: 'ACTIVO', child: Text('Activo')),
