@@ -7,6 +7,7 @@ import '../models/registro_model.dart';
 import '../models/venta_grafico_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../widgets/logout_modal.dart';
 
 class DashboardView extends StatefulWidget {
   const DashboardView({super.key});
@@ -46,9 +47,7 @@ class _DashboardViewState extends State<DashboardView> {
         actions: [
           IconButton(
             tooltip: 'Cerrar sesion',
-            onPressed: () async {
-              await context.read<AuthProvider>().logout();
-            },
+            onPressed: () => showLogoutModal(context),
             icon: const Icon(Icons.logout),
           ),
         ],

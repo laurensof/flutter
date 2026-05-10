@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/auth_provider.dart';
+import '../widgets/logout_modal.dart';
 
 class TiendaView extends StatelessWidget {
   const TiendaView({super.key});
@@ -19,9 +20,7 @@ class TiendaView extends StatelessWidget {
           if (authProvider.isAuthenticated)
             IconButton(
               tooltip: 'Cerrar sesion',
-              onPressed: () async {
-                await context.read<AuthProvider>().logout();
-              },
+              onPressed: () => showLogoutModal(context),
               icon: const Icon(Icons.logout),
             ),
         ],

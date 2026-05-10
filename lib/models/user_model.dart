@@ -26,17 +26,17 @@ class UserModel {
   int? get id => idUsuario;
   int? get personaId => idPersona;
   String? get usuario => username;
-  bool get isAdmin => idTipo == 1;
-  bool get isCliente => idTipo == 3;
+  bool get isAdmin => idTipo == 4;
+  bool get isRepartidor => idTipo == 5;
   bool get isActivo => estado?.toUpperCase() == 'ACTIVO';
-  String get role => isAdmin ? 'admin' : 'cliente';
+  String get role => isAdmin ? 'super_admin' : 'repartidor';
   String get redirect => isAdmin ? 'admin_panel' : 'tienda';
   String get rol {
     if (isAdmin) {
-      return 'Administrador';
+      return 'SuperAdmin';
     }
-    if (isCliente) {
-      return 'ClienteTiendaV';
+    if (isRepartidor) {
+      return 'Repartidor';
     }
     return 'Usuario';
   }
