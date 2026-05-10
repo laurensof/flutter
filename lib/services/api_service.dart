@@ -5,7 +5,10 @@ import 'package:http/http.dart' as http;
 
 import '../models/api_response.dart';
 import '../models/login_response.dart';
+import '../models/reportes_dashboard_model.dart';
 import '../models/reporte_model.dart';
+import '../models/registro_model.dart';
+import '../models/venta_grafico_model.dart';
 
 class ApiService {
   static const String baseUrl =
@@ -161,6 +164,212 @@ class ApiService {
     }
   }
 
+  Future<ApiResponse<List<VentaGraficoModel>>> getVentasGrafico(
+    String periodo,
+  ) async {
+    final url = Uri.parse('$baseUrl/ventas-grafico?periodo=$periodo');
+
+    try {
+      final response = await http.get(url, headers: _headers).timeout(_timeout);
+      final decoded = _decodeJson(response.body);
+
+      if (decoded == null) {
+        return ApiResponse(
+          success: false,
+          statusCode: response.statusCode,
+          message: 'El backend no devolvio un JSON valido.',
+        );
+      }
+
+      final puntosJson = _extractVentasGraficoList(decoded);
+      final puntos = puntosJson
+          .whereType<Map<String, dynamic>>()
+          .map(VentaGraficoModel.fromJson)
+          .toList();
+
+      return ApiResponse(
+        success: response.statusCode >= 200 && response.statusCode < 300,
+        data: puntos,
+        statusCode: response.statusCode,
+        message:
+            _parseMessage(decoded) ?? _messageForStatus(response.statusCode, null),
+      );
+    } on TimeoutException {
+      return const ApiResponse(
+        success: false,
+        message: 'Tiempo de espera agotado consultando ventas.',
+      );
+    } on http.ClientException {
+      return const ApiResponse(
+        success: false,
+        message: 'No se pudo conectar con la API en Railway.',
+      );
+    } on FormatException {
+      return const ApiResponse(
+        success: false,
+        message: 'Respuesta invalida del servidor.',
+      );
+    } catch (e) {
+      return ApiResponse(success: false, message: _connectionErrorMessage(e));
+    }
+  }
+
+  Future<ApiResponse<ReportesDashboardModel>> getReportesDashboard({
+    String periodo = 'mes',
+  }) async {
+    final url = Uri.parse('$baseUrl/reportes-dashboard?periodo=$periodo');
+
+    try {
+      final response = await http.get(url, headers: _headers).timeout(_timeout);
+      final decoded = _decodeJson(response.body);
+
+      if (decoded == null) {
+        return ApiResponse(
+          success: false,
+          statusCode: response.statusCode,
+          message: 'El backend no devolvio un JSON valido.',
+        );
+      }
+
+      final data = decoded['data'] is Map<String, dynamic>
+          ? decoded['data'] as Map<String, dynamic>
+          : decoded;
+
+      return ApiResponse(
+        success: response.statusCode >= 200 && response.statusCode < 300,
+        data: ReportesDashboardModel.fromJson(data),
+        statusCode: response.statusCode,
+        message:
+            _parseMessage(decoded) ?? _messageForStatus(response.statusCode, null),
+      );
+    } on TimeoutException {
+      return const ApiResponse(
+        success: false,
+        message: 'Tiempo de espera agotado consultando reportes.',
+      );
+    } on http.ClientException {
+      return const ApiResponse(
+        success: false,
+        message: 'No se pudo conectar con la API en Railway.',
+      );
+    } on FormatException {
+      return const ApiResponse(
+        success: false,
+        message: 'Respuesta invalida del servidor.',
+      );
+    } catch (e) {
+      return ApiResponse(success: false, message: _connectionErrorMessage(e));
+    }
+  }
+
+  Future<ApiResponse<List<ProveedorRegistroModel>>> getProveedores() async {
+    final response = await _getList(
+      '/registro?tipo=proveedores',
+      ProveedorRegistroModel.fromJson,
+    );
+    return response;
+  }
+
+  Future<ApiResponse<List<ProductoRegistroModel>>> getProductosRegistro() async {
+    final response = await _getList(
+      '/registro?tipo=productos',
+      ProductoRegistroModel.fromJson,
+    );
+    return response;
+  }
+
+  Future<ApiResponse<List<CategoriaRegistroModel>>> getCategoriasRegistro() {
+    return _getList(
+      '/registro?tipo=categorias',
+      CategoriaRegistroModel.fromJson,
+    );
+  }
+
+  Future<ApiResponse<void>> guardarProveedor(
+    ProveedorRegistroModel proveedor,
+  ) {
+    final accion = proveedor.idProveedor == null ? 'crear' : 'actualizar';
+    return _postVoid(
+      '/registro?tipo=proveedores&accion=$accion',
+      proveedor.toJson(),
+    );
+  }
+
+  Future<ApiResponse<void>> guardarProducto(
+    ProductoRegistroModel producto,
+  ) {
+    final accion = producto.idProducto == null ? 'crear' : 'actualizar';
+    return _postVoid(
+      '/registro?tipo=productos&accion=$accion',
+      producto.toJson(),
+    );
+  }
+
+  Future<ApiResponse<List<T>>> _getList<T>(
+    String path,
+    T Function(Map<String, dynamic>) fromJson,
+  ) async {
+    final url = Uri.parse('$baseUrl$path');
+
+    try {
+      final response = await http.get(url, headers: _headers).timeout(_timeout);
+      final decoded = _decodeJson(response.body);
+      if (decoded == null) {
+        return ApiResponse(
+          success: false,
+          statusCode: response.statusCode,
+          message: 'El backend no devolvio un JSON valido.',
+        );
+      }
+
+      final data = decoded['data'];
+      final items = data is List
+          ? data.whereType<Map<String, dynamic>>().map(fromJson).toList()
+          : <T>[];
+
+      return ApiResponse(
+        success: response.statusCode >= 200 && response.statusCode < 300,
+        data: items,
+        statusCode: response.statusCode,
+        message: _parseMessage(decoded),
+      );
+    } on TimeoutException {
+      return const ApiResponse(
+        success: false,
+        message: 'Tiempo de espera agotado.',
+      );
+    } catch (e) {
+      return ApiResponse(success: false, message: _connectionErrorMessage(e));
+    }
+  }
+
+  Future<ApiResponse<void>> _postVoid(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final url = Uri.parse('$baseUrl$path');
+
+    try {
+      final response = await http
+          .post(url, headers: _headers, body: jsonEncode(body))
+          .timeout(_timeout);
+      final decoded = _decodeJson(response.body);
+
+      return ApiResponse(
+        success: response.statusCode >= 200 && response.statusCode < 300,
+        statusCode: response.statusCode,
+        message: decoded == null ? null : _parseMessage(decoded),
+      );
+    } on TimeoutException {
+      return const ApiResponse(
+        success: false,
+        message: 'Tiempo de espera agotado.',
+      );
+    } catch (e) {
+      return ApiResponse(success: false, message: _connectionErrorMessage(e));
+    }
+  }
+
   Map<String, dynamic>? _decodeJson(String body) {
     final trimmedBody = body.trim();
     if (trimmedBody.isEmpty) {
@@ -200,6 +409,28 @@ class ApiService {
       }
       if (data['resumen'] is List) {
         return data['resumen'] as List<dynamic>;
+      }
+    }
+    if (data is List) {
+      return data;
+    }
+    return const [];
+  }
+
+  List<dynamic> _extractVentasGraficoList(Map<String, dynamic> json) {
+    final data = json['data'];
+    if (json['ventas'] is List) {
+      return json['ventas'] as List<dynamic>;
+    }
+    if (json['puntos'] is List) {
+      return json['puntos'] as List<dynamic>;
+    }
+    if (data is Map<String, dynamic>) {
+      if (data['ventas'] is List) {
+        return data['ventas'] as List<dynamic>;
+      }
+      if (data['puntos'] is List) {
+        return data['puntos'] as List<dynamic>;
       }
     }
     if (data is List) {
