@@ -195,30 +195,9 @@ class _LoginViewState extends State<LoginView> {
                         onPressed: _cargando
                             ? null
                             : () => _mostrarPendiente(
-                                  'Registro disponible desde el backend web.',
-                                ),
-                        child: const Text('Registro'),
-                      ),
-                      TextButton(
-                        onPressed: _cargando
-                            ? null
-                            : () => _mostrarPendiente(
                                   'Recuperacion de contrasena pendiente.',
-                                ),
+                        ),
                         child: const Text('Recuperar contrasena'),
-                      ),
-                      TextButton(
-                        onPressed: _cargando
-                            ? null
-                            : () {
-                                Navigator.pushReplacement(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => const TiendaView(),
-                                  ),
-                                );
-                              },
-                        child: const Text('Volver a tienda'),
                       ),
                     ],
                   ),
