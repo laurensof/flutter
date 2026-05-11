@@ -105,15 +105,20 @@ class _DashboardViewState extends State<DashboardView> {
     );
   }
 
-  Future<List<ReporteModel>> _cargarReportes() async {
-    final response = await ApiService().getReportes();
+  Future<List<ReporteModel>> _cargarReportes({
+    bool forceRefresh = false,
+  }) async {
+    final api = ApiService();
+    final dashboardFuture = api.getReportesDashboard(
+      periodo: 'hoy',
+      forceRefresh: forceRefresh,
+    );
+    final response = await api.getReportes(forceRefresh: forceRefresh);
     if (response.success && (response.data ?? const []).isNotEmpty) {
       return response.data ?? const [];
     }
 
-    final dashboardResponse = await ApiService().getReportesDashboard(
-      periodo: 'hoy',
-    );
+    final dashboardResponse = await dashboardFuture;
     if (dashboardResponse.success && dashboardResponse.data != null) {
       return _reportesDesdeDashboard(dashboardResponse.data!);
     }
@@ -125,8 +130,12 @@ class _DashboardViewState extends State<DashboardView> {
     );
   }
 
-  Future<List<ProductoRegistroModel>> _cargarAlertasStock() async {
-    final response = await ApiService().getProductosRegistro();
+  Future<List<ProductoRegistroModel>> _cargarAlertasStock({
+    bool forceRefresh = false,
+  }) async {
+    final response = await ApiService().getProductosRegistro(
+      forceRefresh: forceRefresh,
+    );
     if (!response.success) {
       return const <ProductoRegistroModel>[];
     }
@@ -138,8 +147,8 @@ class _DashboardViewState extends State<DashboardView> {
 
   void _refrescarDashboard() {
     setState(() {
-      _reportesFuture = _cargarReportes();
-      _stockAlertsFuture = _cargarAlertasStock();
+      _reportesFuture = _cargarReportes(forceRefresh: true);
+      _stockAlertsFuture = _cargarAlertasStock(forceRefresh: true);
     });
   }
 
@@ -242,8 +251,10 @@ class _DashboardViewState extends State<DashboardView> {
             onRefresh: () async {
               _refrescarDashboard();
               try {
-                await _reportesFuture;
-                await _stockAlertsFuture;
+                await Future.wait([
+                  _reportesFuture,
+                  _stockAlertsFuture,
+                ]);
               } catch (_) {
                 // El FutureBuilder muestra el error dentro de la pantalla.
               }
@@ -687,11 +698,14 @@ class _ReportesSectionState extends State<_ReportesSection> {
     _future = _load();
   }
 
-  Future<ReportesDashboardModel> _load() async {
+  Future<ReportesDashboardModel> _load({
+    bool forceRefresh = false,
+  }) async {
     final response = await ApiService().getReportesDashboard(
       periodo: _periodo,
       desde: _periodo == 'rango' ? _desde : null,
       hasta: _periodo == 'rango' ? _hasta : null,
+      forceRefresh: forceRefresh,
     );
     if (!response.success || response.data == null) {
       throw Exception(response.message ?? 'No se pudieron cargar los reportes');
@@ -701,7 +715,7 @@ class _ReportesSectionState extends State<_ReportesSection> {
 
   void _refresh() {
     setState(() {
-      _future = _load();
+      _future = _load(forceRefresh: true);
     });
   }
 

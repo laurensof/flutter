@@ -14,6 +14,10 @@ class ApiService {
   static const String baseUrl =
       'https://api-php-production-5399.up.railway.app';
   static const Duration _timeout = Duration(seconds: 30);
+  static const Duration _cacheDuration = Duration(seconds: 45);
+  static final http.Client _client = http.Client();
+  static final Map<String, Future<http.Response>> _pendingGets = {};
+  static final Map<String, _CachedGetResponse> _cachedGets = {};
 
   String? _authToken;
 
@@ -43,7 +47,7 @@ class ApiService {
       print('USERNAME: $usuario');
       print('===================================');
 
-      final response = await http
+      final response = await _client
           .post(url, headers: _headers, body: jsonEncode(body))
           .timeout(_timeout);
 
@@ -103,7 +107,7 @@ class ApiService {
     final url = Uri.parse('$baseUrl/logout');
 
     try {
-      final response = await http
+      final response = await _client
           .post(url, headers: _headers)
           .timeout(_timeout);
 
@@ -116,11 +120,13 @@ class ApiService {
     }
   }
 
-  Future<ApiResponse<List<ReporteModel>>> getReportes() async {
+  Future<ApiResponse<List<ReporteModel>>> getReportes({
+    bool forceRefresh = false,
+  }) async {
     final url = Uri.parse('$baseUrl/reportes');
 
     try {
-      final response = await http.get(url, headers: _headers).timeout(_timeout);
+      final response = await _get(url, forceRefresh: forceRefresh);
       final decoded = _decodeJson(response.body);
 
       if (decoded == null) {
@@ -165,12 +171,13 @@ class ApiService {
   }
 
   Future<ApiResponse<List<VentaGraficoModel>>> getVentasGrafico(
-    String periodo,
-  ) async {
+    String periodo, {
+    bool forceRefresh = false,
+  }) async {
     final url = Uri.parse('$baseUrl/ventas-grafico?periodo=$periodo');
 
     try {
-      final response = await http.get(url, headers: _headers).timeout(_timeout);
+      final response = await _get(url, forceRefresh: forceRefresh);
       final decoded = _decodeJson(response.body);
 
       if (decoded == null) {
@@ -218,6 +225,7 @@ class ApiService {
     String periodo = 'mes',
     DateTime? desde,
     DateTime? hasta,
+    bool forceRefresh = false,
   }) async {
     final query = <String, String>{'periodo': periodo};
     if (desde != null) {
@@ -231,7 +239,7 @@ class ApiService {
     ).replace(queryParameters: query);
 
     try {
-      final response = await http.get(url, headers: _headers).timeout(_timeout);
+      final response = await _get(url, forceRefresh: forceRefresh);
       final decoded = _decodeJson(response.body);
 
       if (decoded == null) {
@@ -279,26 +287,35 @@ class ApiService {
     return '${date.year}-$month-$day';
   }
 
-  Future<ApiResponse<List<ProveedorRegistroModel>>> getProveedores() async {
+  Future<ApiResponse<List<ProveedorRegistroModel>>> getProveedores({
+    bool forceRefresh = false,
+  }) async {
     final response = await _getList(
       '/registro?tipo=proveedores',
       ProveedorRegistroModel.fromJson,
+      forceRefresh: forceRefresh,
     );
     return response;
   }
 
-  Future<ApiResponse<List<ProductoRegistroModel>>> getProductosRegistro() async {
+  Future<ApiResponse<List<ProductoRegistroModel>>> getProductosRegistro({
+    bool forceRefresh = false,
+  }) async {
     final response = await _getList(
       '/registro?tipo=productos',
       ProductoRegistroModel.fromJson,
+      forceRefresh: forceRefresh,
     );
     return response;
   }
 
-  Future<ApiResponse<List<CategoriaRegistroModel>>> getCategoriasRegistro() {
+  Future<ApiResponse<List<CategoriaRegistroModel>>> getCategoriasRegistro({
+    bool forceRefresh = false,
+  }) {
     return _getList(
       '/registro?tipo=categorias',
       CategoriaRegistroModel.fromJson,
+      forceRefresh: forceRefresh,
     );
   }
 
@@ -324,12 +341,13 @@ class ApiService {
 
   Future<ApiResponse<List<T>>> _getList<T>(
     String path,
-    T Function(Map<String, dynamic>) fromJson,
-  ) async {
+    T Function(Map<String, dynamic>) fromJson, {
+    bool forceRefresh = false,
+  }) async {
     final url = Uri.parse('$baseUrl$path');
 
     try {
-      final response = await http.get(url, headers: _headers).timeout(_timeout);
+      final response = await _get(url, forceRefresh: forceRefresh);
       final decoded = _decodeJson(response.body);
       if (decoded == null) {
         return ApiResponse(
@@ -367,10 +385,13 @@ class ApiService {
     final url = Uri.parse('$baseUrl$path');
 
     try {
-      final response = await http
+      final response = await _client
           .post(url, headers: _headers, body: jsonEncode(body))
           .timeout(_timeout);
       final decoded = _decodeJson(response.body);
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        _cachedGets.clear();
+      }
 
       return ApiResponse(
         success: response.statusCode >= 200 && response.statusCode < 300,
@@ -385,6 +406,42 @@ class ApiService {
     } catch (e) {
       return ApiResponse(success: false, message: _connectionErrorMessage(e));
     }
+  }
+
+  Future<http.Response> _get(Uri url, {bool forceRefresh = false}) {
+    final key = '${url.toString()}|${_authToken ?? ''}';
+    if (!forceRefresh) {
+      final cached = _cachedGets[key];
+      if (cached != null &&
+          DateTime.now().difference(cached.fetchedAt) < _cacheDuration) {
+        return Future.value(cached.response);
+      }
+    } else {
+      _cachedGets.remove(key);
+    }
+
+    final pending = _pendingGets[key];
+    if (pending != null) {
+      return pending;
+    }
+
+    final request = _client.get(url, headers: _headers).timeout(_timeout).then(
+      (response) {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          _cachedGets[key] = _CachedGetResponse(
+            response: response,
+            fetchedAt: DateTime.now(),
+          );
+        }
+        return response;
+      },
+    );
+    _pendingGets[key] = request;
+    request.then<void>(
+      (_) => _pendingGets.remove(key),
+      onError: (_) => _pendingGets.remove(key),
+    );
+    return request;
   }
 
   Map<String, dynamic>? _decodeJson(String body) {
@@ -475,4 +532,14 @@ class ApiService {
     }
     return 'Ocurrio un error inesperado.';
   }
+}
+
+class _CachedGetResponse {
+  const _CachedGetResponse({
+    required this.response,
+    required this.fetchedAt,
+  });
+
+  final http.Response response;
+  final DateTime fetchedAt;
 }
