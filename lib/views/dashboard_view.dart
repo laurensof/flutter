@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../models/reportes_dashboard_model.dart';
 import '../models/reporte_model.dart';
@@ -26,6 +27,82 @@ class _DashboardViewState extends State<DashboardView> {
     _reportesFuture = _cargarReportes();
   }
 
+  void _mostrarGeneradorQr(BuildContext context) {
+    final controller = TextEditingController();
+    String? idActual;
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => Dialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          backgroundColor: Colors.white,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Generar QR de pedido',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF101828))),
+                const SizedBox(height: 20),
+                TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: 'ID del pedido',
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    prefixIcon: const Icon(Icons.confirmation_number_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton(
+                  onPressed: () {
+                    final id = controller.text.trim();
+                    if (id.isNotEmpty && int.tryParse(id) != null) {
+                      setDialogState(() => idActual = id);
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2F6FED),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    minimumSize: const Size(double.infinity, 46),
+                  ),
+                  child: const Text('Generar', style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+                if (idActual != null) ...[
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: QrImageView(
+                      data: idActual!,
+                      version: QrVersions.auto,
+                      size: 180,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text('Pedido #$idActual',
+                      style: const TextStyle(fontSize: 13, color: Color(0xFF667085), fontWeight: FontWeight.w500)),
+                ],
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: const Text('Cerrar'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<List<ReporteModel>> _cargarReportes() async {
     final response = await ApiService().getReportes();
     if (!response.success) {
@@ -45,6 +122,11 @@ class _DashboardViewState extends State<DashboardView> {
         elevation: 0,
         title: Text(titles[_selectedIndex]),
         actions: [
+          IconButton(
+            tooltip: 'Generar QR de pedido',
+            onPressed: () => _mostrarGeneradorQr(context),
+            icon: const Icon(Icons.qr_code),
+          ),
           IconButton(
             tooltip: 'Cerrar sesion',
             onPressed: () => showLogoutModal(context),

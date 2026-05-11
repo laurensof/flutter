@@ -59,6 +59,12 @@ class RepartidorProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<bool> tomarPedido(int idPedido) async {
+    final resp = await _service.tomarPedido(idPedido);
+    if (resp.success) await cargarPedidos();
+    return resp.success;
+  }
+
   Future<bool> actualizarEstadoEntrega(int idEntrega, String nuevoEstado, {String? notas}) async {
     final resp = await _service.actualizarEstadoEntrega(idEntrega, nuevoEstado, notas: notas);
     if (resp.success) await cargarPedidos();

@@ -74,6 +74,22 @@ class RepartidorService {
     }
   }
 
+  Future<ApiResponse<void>> tomarPedido(int idPedido) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/repartidor?accion=tomar_pedido'),
+            headers: _headers,
+            body: jsonEncode({'id_pedido': idPedido}),
+          )
+          .timeout(_timeout);
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      return ApiResponse(success: json['success'] == true, message: json['message']?.toString());
+    } catch (e) {
+      return ApiResponse(success: false, message: 'Error de conexión: $e');
+    }
+  }
+
   Future<ApiResponse<void>> actualizarUbicacion(double latitud, double longitud) async {
     try {
       final response = await http

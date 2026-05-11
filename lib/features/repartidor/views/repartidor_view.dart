@@ -8,6 +8,7 @@ import '../models/pedido_repartidor_model.dart';
 import '../providers/repartidor_provider.dart';
 import '../widgets/mapa_ruta_widget.dart';
 import '../widgets/pedido_card.dart';
+import 'qr_scanner_screen.dart';
 
 class RepartidorView extends StatefulWidget {
   const RepartidorView({super.key});
@@ -109,9 +110,51 @@ class _PedidosTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (provider.cargandoPedidos) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    return Column(
+      children: [
+        // Botón escanear QR
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: () => _escanearQr(context),
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Escanear pedido', style: TextStyle(fontWeight: FontWeight.w600)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2F6FED),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ),
+        // Lista de pedidos
+        Expanded(
+          child: _buildLista(context),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _escanearQr(BuildContext context) async {
+    final idPedido = await Navigator.of(context).push<int>(
+      MaterialPageRoute(builder: (_) => const QrScannerScreen()),
+    );
+    if (idPedido == null || !context.mounted) return;
+
+    final ok = await provider.tomarPedido(idPedido);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(ok ? 'Pedido #$idPedido asignado correctamente' : 'No se pudo asignar el pedido'),
+      backgroundColor: ok ? const Color(0xFF30B566) : const Color(0xFFE5484D),
+    ));
+  }
+
+  Widget _buildLista(BuildContext context) {
+    if (provider.cargandoPedidos) return const Center(child: CircularProgressIndicator());
     if (provider.error != null) {
       return Center(child: Text(provider.error!, style: const TextStyle(color: Color(0xFFE5484D))));
     }
@@ -130,7 +173,7 @@ class _PedidosTab extends StatelessWidget {
     return RefreshIndicator(
       onRefresh: provider.cargarPedidos,
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: provider.pedidos.length,
         itemBuilder: (_, i) {
           final pedido = provider.pedidos[i];
