@@ -5,6 +5,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../models/reportes_dashboard_model.dart';
 import '../models/reporte_model.dart';
 import '../models/registro_model.dart';
+import '../models/user_model.dart';
 import '../models/venta_grafico_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
@@ -226,7 +227,6 @@ class _DashboardViewState extends State<DashboardView> {
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.user;
-          final nombre = user?.nombreCompleto ?? user?.nombre;
 
           Widget buildReportesSection() {
             return const _ReportesSection();
@@ -240,11 +240,7 @@ class _DashboardViewState extends State<DashboardView> {
             ),
             buildReportesSection(),
             const _RegistroSection(),
-            _PerfilSection(
-              nombre: nombre,
-              username: user?.usuario,
-              rol: user?.rol,
-            ),
+            _PerfilSection(user: user),
           ];
 
           return RefreshIndicator(
@@ -3797,27 +3793,387 @@ InputDecoration _inputDecoration(String label, {IconData? icon}) {
 }
 
 class _PerfilSection extends StatelessWidget {
-  const _PerfilSection({
-    required this.nombre,
-    required this.username,
-    required this.rol,
-  });
+  const _PerfilSection({required this.user});
 
-  final String? nombre;
-  final String? username;
-  final String? rol;
+  final UserModel? user;
 
   @override
   Widget build(BuildContext context) {
+    final persona = user?.persona;
+    final nombre = user?.nombreCompleto ?? user?.nombre ?? user?.usuario;
+    final username = user?.usuario ?? 'Sin usuario';
+    final rol = user?.rol ?? 'Administrador';
+    final estado = user?.estado ?? 'Activo';
+    final correo = user?.email ?? persona?.correo;
+    final telefono = persona?.telefono?.toString();
+    final cedula = persona?.cedula?.toString();
+    final direccion = persona?.direccion;
+    final initials = _initials(nombre ?? username);
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
       children: [
-        _InfoPanel(
-          icon: Icons.person,
-          title: nombre ?? username ?? 'Perfil',
-          message: rol ?? 'Administrador',
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 380),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 18 * (1 - value)),
+                child: child,
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF1D2939).withOpacity(0.08),
+                  blurRadius: 28,
+                  offset: const Offset(0, 14),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF2F6FED), Color(0xFF00A896)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(22),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2F6FED).withOpacity(0.25),
+                            blurRadius: 22,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        initials,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w900,
+                            ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            nombre ?? 'Perfil',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                  color: const Color(0xFF101828),
+                                  fontWeight: FontWeight.w900,
+                                ),
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            '@$username',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                  color: const Color(0xFF667085),
+                                  fontWeight: FontWeight.w700,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _PerfilBadge(
+                        icon: Icons.verified_user_outlined,
+                        label: rol,
+                        color: const Color(0xFF2F6FED),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _PerfilBadge(
+                        icon: user?.isActivo == false
+                            ? Icons.block_outlined
+                            : Icons.check_circle_outline,
+                        label: estado,
+                        color: user?.isActivo == false
+                            ? const Color(0xFFE5484D)
+                            : const Color(0xFF00A896),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+        _PerfilSectionCard(
+          title: 'Informacion personal',
+          children: [
+            _PerfilInfoTile(
+              icon: Icons.badge_outlined,
+              label: 'ID usuario',
+              value: _valueOrEmpty(user?.idUsuario?.toString()),
+            ),
+            _PerfilInfoTile(
+              icon: Icons.person_outline,
+              label: 'Usuario',
+              value: username,
+            ),
+            _PerfilInfoTile(
+              icon: Icons.alternate_email,
+              label: 'Correo',
+              value: _valueOrEmpty(correo),
+            ),
+            _PerfilInfoTile(
+              icon: Icons.credit_card_outlined,
+              label: 'Cedula',
+              value: _valueOrEmpty(cedula),
+            ),
+            _PerfilInfoTile(
+              icon: Icons.phone_outlined,
+              label: 'Telefono',
+              value: _valueOrEmpty(telefono),
+            ),
+            _PerfilInfoTile(
+              icon: Icons.location_on_outlined,
+              label: 'Direccion',
+              value: _valueOrEmpty(direccion),
+              isLast: true,
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        _PerfilSectionCard(
+          title: 'Sesion',
+          children: [
+            _PerfilInfoTile(
+              icon: Icons.admin_panel_settings_outlined,
+              label: 'Tipo de acceso',
+              value: rol,
+            ),
+            _PerfilInfoTile(
+              icon: Icons.route_outlined,
+              label: 'Panel asignado',
+              value: user?.redirect ?? 'admin_panel',
+            ),
+            _PerfilInfoTile(
+              icon: Icons.lock_outline,
+              label: 'Token de sesion',
+              value: 'Activo',
+              isLast: true,
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        FilledButton.icon(
+          onPressed: () => showLogoutModal(context),
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+            backgroundColor: const Color(0xFFE5484D),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+          icon: const Icon(Icons.logout),
+          label: const Text(
+            'Cerrar sesion',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
         ),
       ],
+    );
+  }
+
+  String _initials(String value) {
+    final parts = value
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+    if (parts.isEmpty) {
+      return 'NA';
+    }
+    final first = parts.first[0];
+    final second = parts.length > 1 ? parts[1][0] : '';
+    return '$first$second'.toUpperCase();
+  }
+
+  String _valueOrEmpty(String? value) {
+    final text = value?.trim();
+    return text == null || text.isEmpty ? 'No registrado' : text;
+  }
+}
+
+class _PerfilBadge extends StatelessWidget {
+  const _PerfilBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withOpacity(0.18)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w900,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PerfilSectionCard extends StatelessWidget {
+  const _PerfilSectionCard({
+    required this.title,
+    required this.children,
+  });
+
+  final String title;
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE7EAF0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF1D2939).withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  color: const Color(0xFF101828),
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          const SizedBox(height: 10),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _PerfilInfoTile extends StatelessWidget {
+  const _PerfilInfoTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.isLast = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool isLast;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        top: 12,
+        bottom: isLast ? 0 : 12,
+      ),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: isLast
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFE7EAF0)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEAF3FF),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: const Color(0xFF2F6FED), size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF98A2B3),
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF344054),
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
