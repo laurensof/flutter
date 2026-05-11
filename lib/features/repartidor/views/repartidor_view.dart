@@ -340,6 +340,7 @@ class _MapaTab extends StatelessWidget {
             rutaPuntos: provider.rutaPuntos,
             cargando: provider.cargandoRuta,
             instruccionActual: provider.pasoActual?.instruccion,
+            heading: provider.heading,
           ),
         ),
       ],

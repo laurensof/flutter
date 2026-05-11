@@ -58,6 +58,8 @@ class RepartidorProvider extends ChangeNotifier {
   bool get cargandoRuta                    => _cargandoRuta;
   String? get error                        => _error;
 
+  double get heading => _posicionActual?.heading ?? 0;
+
   NavigationStepModel? get pasoActual =>
       _pasos.isNotEmpty && _pasoActualIndex < _pasos.length
           ? _pasos[_pasoActualIndex]
@@ -67,7 +69,7 @@ class RepartidorProvider extends ChangeNotifier {
 
   Future<void> _initTts() async {
     await _tts.setLanguage('es-ES');
-    await _tts.setSpeechRate(0.9);
+    await _tts.setSpeechRate(0.45);
     await _tts.setVolume(1.0);
   }
 
