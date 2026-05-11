@@ -203,16 +203,16 @@ class _PedidosTab extends StatelessWidget {
     // Si no tiene entrega creada, crearla primero
     int? idEntrega = pedido.idEntrega;
     if (idEntrega == null) {
-      final created = await provider.iniciarEntrega(pedido.idPedido);
+      final (nuevoId, errorMsg) = await provider.iniciarEntrega(pedido.idPedido);
       if (!context.mounted) return;
-      if (created == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('No se pudo iniciar la entrega'),
-          backgroundColor: Color(0xFFE5484D),
+      if (nuevoId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(errorMsg ?? 'No se pudo iniciar la entrega'),
+          backgroundColor: const Color(0xFFE5484D),
         ));
         return;
       }
-      idEntrega = created;
+      idEntrega = nuevoId;
     }
 
     // Flujo según estado actual
