@@ -2590,9 +2590,12 @@ class _ProductoFormState extends State<_ProductoForm> {
   late final TextEditingController _codigo;
   late final TextEditingController _precio;
   late final TextEditingController _descripcion;
+  late final TextEditingController _stockInicial;
   String _estado = 'ACTIVO';
   int? _idCategoria;
+  int? _idProveedor;
   late Future<List<CategoriaRegistroModel>> _categoriasFuture;
+  late Future<List<ProveedorRegistroModel>> _proveedoresFuture;
   bool _saving = false;
 
   @override
@@ -2605,9 +2608,11 @@ class _ProductoFormState extends State<_ProductoForm> {
       text: producto == null ? '' : producto.precio.toStringAsFixed(2),
     );
     _descripcion = TextEditingController(text: producto?.descripcion ?? '');
+    _stockInicial = TextEditingController();
     _estado = producto?.estado ?? 'ACTIVO';
     _idCategoria = producto?.idCategoria == 0 ? null : producto?.idCategoria;
     _categoriasFuture = _loadCategorias();
+    _proveedoresFuture = _loadProveedores();
   }
 
   Future<List<CategoriaRegistroModel>> _loadCategorias() async {
@@ -2618,17 +2623,34 @@ class _ProductoFormState extends State<_ProductoForm> {
     return response.data ?? const [];
   }
 
+  Future<List<ProveedorRegistroModel>> _loadProveedores() async {
+    final response = await ApiService().getProveedores();
+    if (!response.success) {
+      throw Exception(response.message ?? 'No se pudieron cargar proveedores');
+    }
+    return response.data ?? const [];
+  }
+
   @override
   void dispose() {
     _nombre.dispose();
     _codigo.dispose();
     _precio.dispose();
     _descripcion.dispose();
+    _stockInicial.dispose();
     super.dispose();
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate() || _idCategoria == null) {
+      return;
+    }
+    final isCreating = widget.producto == null;
+    final stockInicial = int.tryParse(_stockInicial.text.trim()) ?? 0;
+    if (isCreating && _idProveedor == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona el proveedor del stock inicial')),
+      );
       return;
     }
     setState(() => _saving = true);
@@ -2640,6 +2662,8 @@ class _ProductoFormState extends State<_ProductoForm> {
       precio: double.tryParse(_precio.text.trim()) ?? 0,
       estado: _estado,
       idCategoria: _idCategoria!,
+      stockInicial: isCreating ? stockInicial : null,
+      idProveedor: isCreating ? _idProveedor : null,
     );
     final response = await ApiService().guardarProducto(producto);
     if (!mounted) {
@@ -2702,6 +2726,68 @@ class _ProductoFormState extends State<_ProductoForm> {
             ),
             const SizedBox(height: 14),
             _RegistroTextField(controller: _precio, label: 'Precio'),
+            if (widget.producto == null) ...[
+              _RegistroTextField(
+                controller: _stockInicial,
+                label: 'Stock inicial',
+                keyboardType: TextInputType.number,
+                validator: (value) {
+                  final text = value.trim();
+                  if (text.isEmpty) {
+                    return 'Ingresa el stock inicial';
+                  }
+                  final stock = int.tryParse(text);
+                  if (stock == null || stock < 0) {
+                    return 'Ingresa un numero valido';
+                  }
+                  return null;
+                },
+              ),
+              FutureBuilder<List<ProveedorRegistroModel>>(
+                future: _proveedoresFuture,
+                builder: (context, snapshot) {
+                  final proveedores = _uniqueProveedores(snapshot.data ?? const []);
+                  final selectedProvider = proveedores.any(
+                    (proveedor) => proveedor.idProveedor == _idProveedor,
+                  )
+                      ? _idProveedor
+                      : null;
+                  if (_idProveedor != null && selectedProvider == null) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted) {
+                        setState(() => _idProveedor = null);
+                      }
+                    });
+                  }
+                  return DropdownButtonFormField<int>(
+                    value: selectedProvider,
+                    decoration: _inputDecoration('Proveedor del stock'),
+                    items: [
+                      for (final proveedor in proveedores)
+                        if (proveedor.idProveedor != null)
+                          DropdownMenuItem(
+                            value: proveedor.idProveedor,
+                            child: Text(proveedor.nombre),
+                          ),
+                    ],
+                    onChanged: (value) => setState(() => _idProveedor = value),
+                    validator: (value) {
+                      if (value == null) {
+                        return 'Selecciona proveedor';
+                      }
+                      return null;
+                    },
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+              const _InfoPanel(
+                icon: Icons.receipt_long,
+                title: 'Entrada inicial',
+                message:
+                    'El stock se registrara como una compra inicial del proveedor seleccionado.',
+              ),
+            ],
             _RegistroTextField(
               controller: _descripcion,
               label: 'Descripcion',
@@ -2730,6 +2816,17 @@ class _ProductoFormState extends State<_ProductoForm> {
     return [
       for (final categoria in categorias)
         if (seen.add(categoria.idCategoria)) categoria,
+    ];
+  }
+
+  List<ProveedorRegistroModel> _uniqueProveedores(
+    List<ProveedorRegistroModel> proveedores,
+  ) {
+    final seen = <int>{};
+    return [
+      for (final proveedor in proveedores)
+        if (proveedor.idProveedor != null && seen.add(proveedor.idProveedor!))
+          proveedor,
     ];
   }
 }
@@ -2845,12 +2942,16 @@ class _RegistroTextField extends StatelessWidget {
     required this.label,
     this.maxLines = 1,
     this.required = true,
+    this.keyboardType,
+    this.validator,
   });
 
   final TextEditingController controller;
   final String label;
   final int maxLines;
   final bool required;
+  final TextInputType? keyboardType;
+  final String? Function(String value)? validator;
 
   @override
   Widget build(BuildContext context) {
@@ -2859,10 +2960,15 @@ class _RegistroTextField extends StatelessWidget {
       child: TextFormField(
         controller: controller,
         maxLines: maxLines,
+        keyboardType: keyboardType,
         decoration: _inputDecoration(label),
         validator: (value) {
           if (required && (value == null || value.trim().isEmpty)) {
             return 'Campo requerido';
+          }
+          final customError = validator?.call(value?.trim() ?? '');
+          if (customError != null) {
+            return customError;
           }
           return null;
         },

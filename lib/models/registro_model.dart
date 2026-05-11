@@ -70,6 +70,8 @@ class ProductoRegistroModel {
     required this.idCategoria,
     this.categoria,
     this.stock = 0,
+    this.stockInicial,
+    this.idProveedor,
   });
 
   final int? idProducto;
@@ -81,6 +83,8 @@ class ProductoRegistroModel {
   final int idCategoria;
   final String? categoria;
   final int stock;
+  final int? stockInicial;
+  final int? idProveedor;
 
   factory ProductoRegistroModel.fromJson(Map<String, dynamic> json) {
     return ProductoRegistroModel(
@@ -93,6 +97,8 @@ class ProductoRegistroModel {
       idCategoria: _parseInt(json['id_categoria'] ?? json['ID_CATEGORIA']) ?? 0,
       categoria: _parseStringOrNull(json['categoria'] ?? json['CATEGORIA']),
       stock: _parseInt(json['stock'] ?? json['STOCK']) ?? 0,
+      stockInicial: _parseInt(json['stock_inicial'] ?? json['STOCK_INICIAL']),
+      idProveedor: _parseInt(json['id_proveedor'] ?? json['ID_PROVEEDOR']),
     );
   }
 
@@ -105,6 +111,8 @@ class ProductoRegistroModel {
       'precio': precio,
       'estado': estado,
       'id_categoria': idCategoria,
+      if (stockInicial != null) 'stock_inicial': stockInicial,
+      if (idProveedor != null) 'id_proveedor': idProveedor,
     };
   }
 }
