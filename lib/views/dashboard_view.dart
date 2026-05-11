@@ -1484,8 +1484,10 @@ class _RegistroSectionState extends State<_RegistroSection> {
 
   @override
   Widget build(BuildContext context) {
+    Widget content;
+
     if (_view == _RegistroView.proveedores) {
-      return _ProveedoresList(
+      content = _ProveedoresList(
         onBack: _back,
         onNew: () {
           _selectedProveedor = null;
@@ -1496,9 +1498,8 @@ class _RegistroSectionState extends State<_RegistroSection> {
           _go(_RegistroView.proveedorForm);
         },
       );
-    }
-    if (_view == _RegistroView.proveedorForm) {
-      return _ProveedorForm(
+    } else if (_view == _RegistroView.proveedorForm) {
+      content = _ProveedorForm(
         proveedor: _selectedProveedor,
         onBack: _back,
         onSaved: () {
@@ -1506,9 +1507,8 @@ class _RegistroSectionState extends State<_RegistroSection> {
           _go(_RegistroView.proveedores);
         },
       );
-    }
-    if (_view == _RegistroView.productos) {
-      return _ProductosList(
+    } else if (_view == _RegistroView.productos) {
+      content = _ProductosList(
         onBack: _back,
         onNew: () {
           _selectedProducto = null;
@@ -1519,9 +1519,8 @@ class _RegistroSectionState extends State<_RegistroSection> {
           _go(_RegistroView.productoForm);
         },
       );
-    }
-    if (_view == _RegistroView.productoForm) {
-      return _ProductoForm(
+    } else if (_view == _RegistroView.productoForm) {
+      content = _ProductoForm(
         producto: _selectedProducto,
         onBack: _back,
         onSaved: () {
@@ -1529,70 +1528,202 @@ class _RegistroSectionState extends State<_RegistroSection> {
           _go(_RegistroView.productos);
         },
       );
+    } else {
+      content = ListView(
+        padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
+        children: [
+          Text(
+            'Registro',
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Administra proveedores y productos sin salir de este apartado.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF667085),
+                ),
+          ),
+          const SizedBox(height: 18),
+          const _RegistroActionBanner(),
+          const SizedBox(height: 18),
+          _RegistroMenuButton(
+            icon: Icons.business,
+            title: 'Proveedores',
+            subtitle: 'Registrar, buscar y editar proveedores',
+            accentColor: const Color(0xFF2F6FED),
+            backgroundColor: const Color(0xFFEAF3FF),
+            onTap: () => _go(_RegistroView.proveedores),
+          ),
+          const SizedBox(height: 14),
+          _RegistroMenuButton(
+            icon: Icons.inventory_2_outlined,
+            title: 'Productos',
+            subtitle: 'Ver stock, registrar y actualizar productos',
+            accentColor: const Color(0xFF7C3AED),
+            backgroundColor: const Color(0xFFF3ECFF),
+            onTap: () => _go(_RegistroView.productos),
+          ),
+        ],
+      );
     }
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
-      children: [
-        Text(
-          'Registro',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w800,
-              ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Administra proveedores y productos sin salir de este apartado.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: const Color(0xFF667085),
-              ),
-        ),
-        const SizedBox(height: 28),
-        _RegistroMenuButton(
-          icon: Icons.business,
-          title: 'Proveedores',
-          subtitle: 'Registrar nuevos proveedores o ver y editar datos',
-          onTap: () => _go(_RegistroView.proveedores),
-        ),
-        const SizedBox(height: 14),
-        _RegistroMenuButton(
-          icon: Icons.inventory_2_outlined,
-          title: 'Productos',
-          subtitle: 'Registrar nuevos productos o ver y editar datos',
-          onTap: () => _go(_RegistroView.productos),
-        ),
-      ],
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 260),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, animation) {
+        final offset = Tween<Offset>(
+          begin: const Offset(0.04, 0),
+          end: Offset.zero,
+        ).animate(animation);
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(position: offset, child: child),
+        );
+      },
+      child: KeyedSubtree(
+        key: ValueKey(_view),
+        child: content,
+      ),
     );
   }
 }
 
-class _RegistroMenuButton extends StatelessWidget {
+class _RegistroActionBanner extends StatelessWidget {
+  const _RegistroActionBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF1F6FED), Color(0xFF20C8B8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2F6FED).withOpacity(0.22),
+            blurRadius: 26,
+            offset: const Offset(0, 14),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.18),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.auto_graph, color: Colors.white),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Gestion rapida',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Toca una tarjeta para entrar, editar y volver al mismo menu.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: Colors.white.withOpacity(0.86),
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RegistroMenuButton extends StatefulWidget {
   const _RegistroMenuButton({
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.accentColor,
+    required this.backgroundColor,
     required this.onTap,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
+  final Color accentColor;
+  final Color backgroundColor;
   final VoidCallback onTap;
 
   @override
+  State<_RegistroMenuButton> createState() => _RegistroMenuButtonState();
+}
+
+class _RegistroMenuButtonState extends State<_RegistroMenuButton> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return _ReportCardShell(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(10),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTap: widget.onTap,
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1,
+        duration: const Duration(milliseconds: 130),
+        curve: Curves.easeOut,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: _pressed
+                  ? widget.accentColor.withOpacity(0.34)
+                  : Colors.white,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(_pressed ? 0.06 : 0.04),
+                blurRadius: _pressed ? 14 : 22,
+                offset: Offset(0, _pressed ? 8 : 12),
+              ),
+            ],
+          ),
           child: Row(
             children: [
-              CircleAvatar(
-                radius: 28,
-                backgroundColor: const Color(0xFFEAF3FF),
-                child: Icon(icon, color: const Color(0xFF2F6FED), size: 30),
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0.94, end: 1),
+                duration: const Duration(milliseconds: 420),
+                curve: Curves.elasticOut,
+                builder: (context, scale, child) {
+                  return Transform.scale(scale: scale, child: child);
+                },
+                child: Container(
+                  width: 58,
+                  height: 58,
+                  decoration: BoxDecoration(
+                    color: widget.backgroundColor,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Icon(widget.icon, color: widget.accentColor, size: 31),
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -1600,14 +1731,14 @@ class _RegistroMenuButton extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      widget.title,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w900,
                           ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 5),
                     Text(
-                      subtitle,
+                      widget.subtitle,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: const Color(0xFF667085),
                           ),
@@ -1615,7 +1746,16 @@ class _RegistroMenuButton extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Color(0xFF667085)),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: widget.accentColor.withOpacity(_pressed ? 0.16 : 0.10),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.chevron_right, color: widget.accentColor),
+              ),
             ],
           ),
         ),
@@ -1673,8 +1813,10 @@ class _ProveedoresListState extends State<_ProveedoresList> {
       itemBuilder: (context, item) {
         return _RegistroListTile(
           title: item.nombre,
-          subtitle: '${item.rut} · ${item.telefono}',
+          subtitle: '${item.rut} - ${item.telefono}',
           trailing: item.estado,
+          icon: Icons.business,
+          accentColor: const Color(0xFF2F6FED),
           onEdit: () => widget.onEdit(item),
         );
       },
@@ -1732,8 +1874,10 @@ class _ProductosListState extends State<_ProductosList> {
         return _RegistroListTile(
           title: item.nombre,
           subtitle:
-              '${item.codigo.isEmpty ? 'Sin codigo' : item.codigo} · ${item.categoria ?? 'Sin categoria'} · Stock ${item.stock}',
+              '${item.codigo.isEmpty ? 'Sin codigo' : item.codigo} - ${item.categoria ?? 'Sin categoria'} - Stock ${item.stock}',
           trailing: '\$${item.precio.toStringAsFixed(2)}',
+          icon: Icons.inventory_2_outlined,
+          accentColor: const Color(0xFF7C3AED),
           onEdit: () => widget.onEdit(item),
         );
       },
@@ -1831,13 +1975,25 @@ class _RegistroListScaffold<T> extends StatelessWidget {
                 message: 'No hay datos para mostrar.',
               );
             }
-            return Column(
-              children: [
-                for (final item in items) ...[
-                  itemBuilder(context, item),
-                  const SizedBox(height: 10),
+            return AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: Column(
+                key: ValueKey('${items.length}-$normalizedQuery'),
+                children: [
+                  _RegistroResultPill(
+                    count: items.length,
+                    query: normalizedQuery,
+                  ),
+                  const SizedBox(height: 12),
+                  for (var index = 0; index < items.length; index++) ...[
+                    _StaggeredListItem(
+                      index: index,
+                      child: itemBuilder(context, items[index]),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                 ],
-              ],
+              ),
             );
           },
         ),
@@ -1846,58 +2002,184 @@ class _RegistroListScaffold<T> extends StatelessWidget {
   }
 }
 
-class _RegistroListTile extends StatelessWidget {
+class _RegistroResultPill extends StatelessWidget {
+  const _RegistroResultPill({
+    required this.count,
+    required this.query,
+  });
+
+  final int count;
+  final String query;
+
+  @override
+  Widget build(BuildContext context) {
+    final label = query.isEmpty
+        ? '$count registros cargados'
+        : '$count resultados para "$query"';
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEAF3FF),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.bolt, size: 16, color: Color(0xFF2F6FED)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: const Color(0xFF2F6FED),
+                    fontWeight: FontWeight.w800,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StaggeredListItem extends StatelessWidget {
+  const _StaggeredListItem({
+    required this.index,
+    required this.child,
+  });
+
+  final int index;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final delaySteps = index < 6 ? index : 6;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 260 + (delaySteps * 38)),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 16 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
+class _RegistroListTile extends StatefulWidget {
   const _RegistroListTile({
     required this.title,
     required this.subtitle,
     required this.trailing,
+    required this.icon,
+    required this.accentColor,
     required this.onEdit,
   });
 
   final String title;
   final String subtitle;
   final String trailing;
+  final IconData icon;
+  final Color accentColor;
   final VoidCallback onEdit;
 
   @override
+  State<_RegistroListTile> createState() => _RegistroListTileState();
+}
+
+class _RegistroListTileState extends State<_RegistroListTile> {
+  bool _pressed = false;
+
+  @override
   Widget build(BuildContext context) {
-    return _ReportCardShell(
-      padding: const EdgeInsets.all(14),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF667085),
-                      ),
-                ),
-              ],
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTap: widget.onEdit,
+      child: AnimatedScale(
+        scale: _pressed ? 0.985 : 1,
+        duration: const Duration(milliseconds: 120),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 160),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _pressed
+                  ? widget.accentColor.withOpacity(0.26)
+                  : const Color(0xFFF0F2F6),
             ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(_pressed ? 0.03 : 0.025),
+                blurRadius: _pressed ? 10 : 18,
+                offset: Offset(0, _pressed ? 5 : 9),
+              ),
+            ],
           ),
-          Text(
-            trailing,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: const Color(0xFF344054),
-                  fontWeight: FontWeight.w800,
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: widget.accentColor.withOpacity(0.10),
+                  borderRadius: BorderRadius.circular(14),
                 ),
+                child: Icon(widget.icon, color: widget.accentColor, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: const Color(0xFF667085),
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    widget.trailing,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          color: const Color(0xFF344054),
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Icon(Icons.edit, color: widget.accentColor, size: 20),
+                ],
+              ),
+            ],
           ),
-          IconButton(
-            tooltip: 'Editar',
-            onPressed: onEdit,
-            icon: const Icon(Icons.edit, color: Color(0xFF2F6FED)),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -2200,13 +2482,48 @@ class _RegistroFormShell extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 16),
-        child,
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 260),
+          curve: Curves.easeOutCubic,
+          builder: (context, value, child) {
+            return Opacity(
+              opacity: value,
+              child: Transform.translate(
+                offset: Offset(0, 14 * (1 - value)),
+                child: child,
+              ),
+            );
+          },
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: const Color(0xFFE7EAF0)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.035),
+                  blurRadius: 22,
+                  offset: const Offset(0, 12),
+                ),
+              ],
+            ),
+            child: child,
+          ),
+        ),
         const SizedBox(height: 18),
         Row(
           children: [
             Expanded(
               child: OutlinedButton(
                 onPressed: saving ? null : onBack,
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
                 child: const Text('Cancelar'),
               ),
             ),
@@ -2214,6 +2531,12 @@ class _RegistroFormShell extends StatelessWidget {
             Expanded(
               child: FilledButton(
                 onPressed: saving ? null : onSave,
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(50),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
                 child: saving
                     ? const SizedBox(
                         width: 18,
