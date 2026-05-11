@@ -373,7 +373,7 @@ class _ReportesSectionState extends State<_ReportesSection> {
                 context: context,
                 initialDate: localDesde,
                 firstDate: DateTime(2020),
-                lastDate: DateTime(now.year + 1, 12, 31),
+                lastDate: now,
               );
               if (picked == null) {
                 return;
@@ -391,7 +391,7 @@ class _ReportesSectionState extends State<_ReportesSection> {
                 context: context,
                 initialDate: localHasta,
                 firstDate: localDesde,
-                lastDate: DateTime(now.year + 1, 12, 31),
+                lastDate: now,
               );
               if (picked == null) {
                 return;
