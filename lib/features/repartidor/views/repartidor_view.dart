@@ -339,6 +339,7 @@ class _MapaTab extends StatelessWidget {
             destinoLng: pedido?.longitudEntrega,
             rutaPuntos: provider.rutaPuntos,
             cargando: provider.cargandoRuta,
+            instruccionActual: provider.pasoActual?.instruccion,
           ),
         ),
       ],

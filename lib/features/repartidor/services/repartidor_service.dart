@@ -5,6 +5,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 
 import '../../../models/api_response.dart';
+import '../models/navigation_step_model.dart';
 import '../models/pedido_repartidor_model.dart';
 import '../models/repartidor_model.dart';
 
@@ -106,25 +107,34 @@ class RepartidorService {
     }
   }
 
-  // Obtiene la ruta entre dos puntos usando OSRM (gratuito, sin límite)
-  Future<List<List<double>>> getRuta({
+  // Obtiene la ruta y los pasos de navegación usando OSRM
+  Future<({List<List<double>> puntos, List<NavigationStepModel> pasos})> getRuta({
     required double origenLat,
     required double origenLng,
     required double destinoLat,
     required double destinoLng,
   }) async {
+    const vacio = (puntos: <List<double>>[], pasos: <NavigationStepModel>[]);
     try {
-      final url = 'http://router.project-osrm.org/route/v1/driving/$origenLng,$origenLat;$destinoLng,$destinoLat'
-          '?overview=full&geometries=geojson';
+      final url = 'http://router.project-osrm.org/route/v1/driving/'
+          '$origenLng,$origenLat;$destinoLng,$destinoLat'
+          '?overview=full&geometries=geojson&steps=true';
       final response = await http.get(Uri.parse(url)).timeout(_timeout);
       final json = jsonDecode(response.body) as Map<String, dynamic>;
-      if (json['code'] == 'Ok') {
-        final coords = json['routes'][0]['geometry']['coordinates'] as List<dynamic>;
-        return coords.map((c) => [c[1] as double, c[0] as double]).toList();
-      }
-      return [];
+      if (json['code'] != 'Ok') return vacio;
+
+      final route  = json['routes'][0] as Map<String, dynamic>;
+      final coords = route['geometry']['coordinates'] as List<dynamic>;
+      final puntos = coords.map((c) => [c[1] as double, c[0] as double]).toList();
+
+      final steps  = route['legs'][0]['steps'] as List<dynamic>;
+      final pasos  = steps
+          .map((s) => NavigationStepModel.fromOsrmStep(s as Map<String, dynamic>))
+          .toList();
+
+      return (puntos: puntos, pasos: pasos);
     } catch (_) {
-      return [];
+      return vacio;
     }
   }
 

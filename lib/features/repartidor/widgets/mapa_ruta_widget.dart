@@ -9,6 +9,7 @@ class MapaRutaWidget extends StatelessWidget {
     this.destinoLng,
     this.rutaPuntos = const [],
     this.cargando = false,
+    this.instruccionActual,
     super.key,
   });
 
@@ -19,6 +20,7 @@ class MapaRutaWidget extends StatelessWidget {
   final double? destinoLng;
   final List<List<double>> rutaPuntos;
   final bool cargando;
+  final String? instruccionActual;
 
   @override
   Widget build(BuildContext context) {
@@ -86,6 +88,33 @@ class MapaRutaWidget extends StatelessWidget {
             ),
           ],
         ),
+        // Banner instrucción de navegación
+        if (instruccionActual != null)
+          Positioned(
+            top: 12,
+            left: 12,
+            right: 12,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF2F6FED),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 8)],
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.navigation_rounded, color: Colors.white, size: 22),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      instruccionActual!,
+                      style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         if (cargando)
           const Center(
             child: Card(
