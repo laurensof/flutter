@@ -2751,161 +2751,269 @@ class _ProductoFormState extends State<_ProductoForm> {
         key: _formKey,
         child: Column(
           children: [
-            _RegistroTextField(controller: _nombre, label: 'Nombre'),
-            _RegistroTextField(controller: _codigo, label: 'Codigo'),
-            FutureBuilder<List<CategoriaRegistroModel>>(
-              future: _categoriasFuture,
-              builder: (context, snapshot) {
-                final categorias = _uniqueCategorias(snapshot.data ?? const []);
-                final selectedCategory = categorias.any(
-                  (categoria) => categoria.idCategoria == _idCategoria,
-                )
-                    ? _idCategoria
-                    : null;
-                if (_idCategoria != null && selectedCategory == null) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted) {
-                      setState(() => _idCategoria = null);
-                    }
-                  });
-                }
-                return DropdownButtonFormField<int>(
-                  value: selectedCategory,
-                  decoration: _inputDecoration('Categoria'),
-                  items: [
-                    for (final categoria in categorias)
-                      DropdownMenuItem(
-                        value: categoria.idCategoria,
-                        child: Text(categoria.nombre),
+            _RegistroCardSection(
+              icon: Icons.inventory_2_outlined,
+              title: 'Datos del producto',
+              color: const Color(0xFF2F6FED),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: _RegistroTextField(
+                          controller: _nombre,
+                          label: 'Nombre',
+                          icon: Icons.sell_outlined,
+                        ),
                       ),
-                  ],
-                  onChanged: (value) => setState(() => _idCategoria = value),
-                  validator: (value) => value == null ? 'Selecciona categoria' : null,
-                );
-              },
-            ),
-            const SizedBox(height: 14),
-            _RegistroTextField(controller: _precio, label: 'Precio'),
-            _RegistroTextField(
-              controller: _descripcion,
-              label: 'Descripcion',
-              maxLines: 4,
-              required: false,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        flex: 2,
+                        child: _RegistroTextField(
+                          controller: _codigo,
+                          label: 'Codigo',
+                          icon: Icons.qr_code_2,
+                        ),
+                      ),
+                    ],
+                  ),
+                  FutureBuilder<List<CategoriaRegistroModel>>(
+                    future: _categoriasFuture,
+                    builder: (context, snapshot) {
+                      final categorias =
+                          _uniqueCategorias(snapshot.data ?? const []);
+                      final selectedCategory = categorias.any(
+                        (categoria) => categoria.idCategoria == _idCategoria,
+                      )
+                          ? _idCategoria
+                          : null;
+                      if (_idCategoria != null && selectedCategory == null) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted) {
+                            setState(() => _idCategoria = null);
+                          }
+                        });
+                      }
+                      return DropdownButtonFormField<int>(
+                        value: selectedCategory,
+                        decoration: _inputDecoration(
+                          'Categoria',
+                          icon: Icons.category_outlined,
+                        ),
+                        items: [
+                          for (final categoria in categorias)
+                            DropdownMenuItem(
+                              value: categoria.idCategoria,
+                              child: Text(categoria.nombre),
+                            ),
+                        ],
+                        onChanged: (value) => setState(() => _idCategoria = value),
+                        validator: (value) =>
+                            value == null ? 'Selecciona categoria' : null,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 14),
+                  _RegistroTextField(
+                    controller: _precio,
+                    label: 'Precio',
+                    keyboardType: TextInputType.number,
+                    icon: Icons.attach_money,
+                  ),
+                  _RegistroTextField(
+                    controller: _descripcion,
+                    label: 'Descripcion',
+                    maxLines: 4,
+                    required: false,
+                    icon: Icons.notes_outlined,
+                  ),
+                ],
+              ),
             ),
             if (widget.producto == null) ...[
-              const SizedBox(height: 4),
-              const _RegistroSectionTitle(
+              const SizedBox(height: 14),
+              _RegistroCardSection(
                 icon: Icons.tag,
                 title: 'Referencia',
-              ),
-              _RegistroTextField(
-                controller: _numeroReferencia,
-                label: 'Numero de referencia',
-              ),
-              _RegistroTextField(
-                controller: _marcaReferencia,
-                label: 'Marca de referencia',
-              ),
-              _RegistroTextField(
-                controller: _fabricanteReferencia,
-                label: 'Fabricante',
-              ),
-              _RegistroTextField(
-                controller: _especificacionesReferencia,
-                label: 'Especificaciones',
-                maxLines: 3,
-                required: false,
-              ),
-              _RegistroTextField(
-                controller: _imagenUrl,
-                label: 'URL de imagen',
-                required: false,
-              ),
-              const SizedBox(height: 4),
-              const _RegistroSectionTitle(
-                icon: Icons.hub_outlined,
-                title: 'Compatibilidad y stock',
-              ),
-              DropdownButtonFormField<String>(
-                value: _tipoCompatibilidad,
-                decoration: _inputDecoration('Tipo de compatibilidad'),
-                items: const [
-                  DropdownMenuItem(value: 'vehiculo', child: Text('Vehiculo')),
-                  DropdownMenuItem(
-                    value: 'maquinaria',
-                    child: Text('Maquinaria'),
-                  ),
-                ],
-                onChanged: (value) {
-                  if (value != null) {
-                    setState(() => _tipoCompatibilidad = value);
-                  }
-                },
+                color: const Color(0xFF7C3AED),
+                child: Column(
+                  children: [
+                    _RegistroTextField(
+                      controller: _numeroReferencia,
+                      label: 'Numero de referencia',
+                      icon: Icons.confirmation_number_outlined,
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _RegistroTextField(
+                            controller: _marcaReferencia,
+                            label: 'Marca',
+                            icon: Icons.workspace_premium_outlined,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _RegistroTextField(
+                            controller: _fabricanteReferencia,
+                            label: 'Fabricante',
+                            icon: Icons.factory_outlined,
+                          ),
+                        ),
+                      ],
+                    ),
+                    _RegistroTextField(
+                      controller: _especificacionesReferencia,
+                      label: 'Especificaciones',
+                      maxLines: 3,
+                      required: false,
+                      icon: Icons.description_outlined,
+                    ),
+                    _RegistroTextField(
+                      controller: _imagenUrl,
+                      label: 'URL de imagen',
+                      required: false,
+                      icon: Icons.image_outlined,
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
-              if (_tipoCompatibilidad == 'vehiculo') ...[
-                _RegistroTextField(
-                  controller: _marcaVehiculo,
-                  label: 'Marca vehiculo',
-                ),
-                _RegistroTextField(
-                  controller: _modeloVehiculo,
-                  label: 'Modelo vehiculo',
-                ),
-                _RegistroTextField(
-                  controller: _motor,
-                  label: 'Motor',
-                  required: false,
-                ),
-                _RegistroTextField(
-                  controller: _transmision,
-                  label: 'Transmision',
-                  required: false,
-                ),
-              ] else ...[
-                _RegistroTextField(
-                  controller: _tipoMaquinaria,
-                  label: 'Tipo maquinaria',
-                ),
-                _RegistroTextField(
-                  controller: _marcaMaquinaria,
-                  label: 'Marca maquinaria',
-                ),
-                _RegistroTextField(
-                  controller: _modeloMaquinaria,
-                  label: 'Modelo maquinaria',
-                ),
-                _RegistroTextField(
-                  controller: _componente,
-                  label: 'Componente',
-                  required: false,
-                ),
-              ],
-              Row(
-                children: [
-                  Expanded(
-                    child: _RegistroTextField(
-                      controller: _anoInicio,
-                      label: 'Año inicio',
-                      keyboardType: TextInputType.number,
+              _RegistroCardSection(
+                icon: Icons.hub_outlined,
+                title: 'Compatibilidad y stock',
+                color: const Color(0xFF0EA5A4),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _CompatChoice(
+                            selected: _tipoCompatibilidad == 'vehiculo',
+                            icon: Icons.directions_car_outlined,
+                            title: 'Vehiculo',
+                            color: const Color(0xFF2F6FED),
+                            onTap: () {
+                              setState(() => _tipoCompatibilidad = 'vehiculo');
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _CompatChoice(
+                            selected: _tipoCompatibilidad == 'maquinaria',
+                            icon: Icons.precision_manufacturing_outlined,
+                            title: 'Maquinaria',
+                            color: const Color(0xFF0EA5A4),
+                            onTap: () {
+                              setState(() => _tipoCompatibilidad = 'maquinaria');
+                            },
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _RegistroTextField(
-                      controller: _anoFin,
-                      label: 'Año fin',
-                      keyboardType: TextInputType.number,
+                    const SizedBox(height: 14),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeInCubic,
+                      child: _tipoCompatibilidad == 'vehiculo'
+                          ? Column(
+                              key: const ValueKey('vehiculo'),
+                              children: [
+                                _RegistroTextField(
+                                  controller: _marcaVehiculo,
+                                  label: 'Marca vehiculo',
+                                  icon: Icons.badge_outlined,
+                                ),
+                                _RegistroTextField(
+                                  controller: _modeloVehiculo,
+                                  label: 'Modelo vehiculo',
+                                  icon: Icons.directions_car_filled_outlined,
+                                ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _RegistroTextField(
+                                        controller: _motor,
+                                        label: 'Motor',
+                                        required: false,
+                                        icon: Icons.settings_outlined,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: _RegistroTextField(
+                                        controller: _transmision,
+                                        label: 'Transmision',
+                                        required: false,
+                                        icon: Icons.account_tree_outlined,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            )
+                          : Column(
+                              key: const ValueKey('maquinaria'),
+                              children: [
+                                _RegistroTextField(
+                                  controller: _tipoMaquinaria,
+                                  label: 'Tipo maquinaria',
+                                  icon: Icons.category_outlined,
+                                ),
+                                _RegistroTextField(
+                                  controller: _marcaMaquinaria,
+                                  label: 'Marca maquinaria',
+                                  icon: Icons.badge_outlined,
+                                ),
+                                _RegistroTextField(
+                                  controller: _modeloMaquinaria,
+                                  label: 'Modelo maquinaria',
+                                  icon: Icons.precision_manufacturing_outlined,
+                                ),
+                                _RegistroTextField(
+                                  controller: _componente,
+                                  label: 'Componente',
+                                  required: false,
+                                  icon: Icons.extension_outlined,
+                                ),
+                              ],
+                            ),
                     ),
-                  ),
-                ],
-              ),
-              _RegistroTextField(
-                controller: _stockCompatibilidad,
-                label: 'Stock',
-                keyboardType: TextInputType.number,
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _RegistroTextField(
+                            controller: _anoInicio,
+                            label: 'Año inicio',
+                            keyboardType: TextInputType.number,
+                            icon: Icons.event_available_outlined,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _RegistroTextField(
+                            controller: _anoFin,
+                            label: 'Año fin',
+                            keyboardType: TextInputType.number,
+                            icon: Icons.event_outlined,
+                          ),
+                        ),
+                      ],
+                    ),
+                    _RegistroTextField(
+                      controller: _stockCompatibilidad,
+                      label: 'Stock',
+                      keyboardType: TextInputType.number,
+                      icon: Icons.inventory_outlined,
+                    ),
+                  ],
+                ),
               ),
             ],
+            const SizedBox(height: 14),
             _EstadoDropdown(value: _estado, onChanged: (v) => setState(() => _estado = v)),
             if (widget.producto != null) ...[
               const SizedBox(height: 12),
@@ -2982,6 +3090,133 @@ class _RegistroSectionTitle extends StatelessWidget {
   }
 }
 
+class _RegistroCardSection extends StatelessWidget {
+  const _RegistroCardSection({
+    required this.icon,
+    required this.title,
+    required this.color,
+    required this.child,
+  });
+
+  final IconData icon;
+  final String title;
+  final Color color;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 12 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withOpacity(0.12)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.07),
+              blurRadius: 24,
+              offset: const Offset(0, 12),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.11),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: Icon(icon, color: color, size: 21),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                          color: const Color(0xFF101828),
+                        ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CompatChoice extends StatelessWidget {
+  const _CompatChoice({
+    required this.selected,
+    required this.icon,
+    required this.title,
+    required this.color,
+    required this.onTap,
+  });
+
+  final bool selected;
+  final IconData icon;
+  final String title;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+        decoration: BoxDecoration(
+          color: selected ? color.withOpacity(0.12) : const Color(0xFFF8FAFC),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: selected ? color.withOpacity(0.55) : const Color(0xFFE7EAF0),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: selected ? color : const Color(0xFF667085), size: 20),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                title,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: selected ? color : const Color(0xFF667085),
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _RegistroFormShell extends StatelessWidget {
   const _RegistroFormShell({
     required this.title,
@@ -3004,7 +3239,11 @@ class _RegistroFormShell extends StatelessWidget {
       children: [
         Row(
           children: [
-            IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_back)),
+            IconButton.filledTonal(
+              onPressed: onBack,
+              icon: const Icon(Icons.arrow_back),
+            ),
+            const SizedBox(width: 8),
             Expanded(
               child: Text(
                 title,
@@ -3030,18 +3269,11 @@ class _RegistroFormShell extends StatelessWidget {
             );
           },
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
+              color: const Color(0xFFF7F9FC),
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(color: const Color(0xFFE7EAF0)),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.035),
-                  blurRadius: 22,
-                  offset: const Offset(0, 12),
-                ),
-              ],
             ),
             child: child,
           ),
@@ -3054,6 +3286,8 @@ class _RegistroFormShell extends StatelessWidget {
                 onPressed: saving ? null : onBack,
                 style: OutlinedButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
+                  foregroundColor: const Color(0xFF344054),
+                  side: const BorderSide(color: Color(0xFFD0D5DD)),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -3067,6 +3301,7 @@ class _RegistroFormShell extends StatelessWidget {
                 onPressed: saving ? null : onSave,
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(50),
+                  backgroundColor: const Color(0xFF2F6FED),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(14),
                   ),
@@ -3095,6 +3330,7 @@ class _RegistroTextField extends StatelessWidget {
     this.required = true,
     this.keyboardType,
     this.validator,
+    this.icon,
   });
 
   final TextEditingController controller;
@@ -3103,6 +3339,7 @@ class _RegistroTextField extends StatelessWidget {
   final bool required;
   final TextInputType? keyboardType;
   final String? Function(String value)? validator;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -3112,7 +3349,7 @@ class _RegistroTextField extends StatelessWidget {
         controller: controller,
         maxLines: maxLines,
         keyboardType: keyboardType,
-        decoration: _inputDecoration(label),
+        decoration: _inputDecoration(label, icon: icon),
         validator: (value) {
           if (required && (value == null || value.trim().isEmpty)) {
             return 'Campo requerido';
@@ -3158,18 +3395,26 @@ class _EstadoDropdown extends StatelessWidget {
   }
 }
 
-InputDecoration _inputDecoration(String label) {
+InputDecoration _inputDecoration(String label, {IconData? icon}) {
   return InputDecoration(
     labelText: label,
     filled: true,
-    fillColor: Colors.white,
+    fillColor: const Color(0xFFFBFCFE),
+    prefixIcon: icon == null
+        ? null
+        : Icon(icon, size: 20, color: const Color(0xFF667085)),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
     border: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(14),
       borderSide: const BorderSide(color: Color(0xFFE7EAF0)),
     ),
     enabledBorder: OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: BorderRadius.circular(14),
       borderSide: const BorderSide(color: Color(0xFFE7EAF0)),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(14),
+      borderSide: const BorderSide(color: Color(0xFF2F6FED), width: 1.4),
     ),
   );
 }
