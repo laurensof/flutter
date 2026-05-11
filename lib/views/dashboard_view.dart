@@ -19,12 +19,14 @@ class DashboardView extends StatefulWidget {
 
 class _DashboardViewState extends State<DashboardView> {
   late Future<List<ReporteModel>> _reportesFuture;
+  late Future<List<ProductoRegistroModel>> _stockAlertsFuture;
   int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
     _reportesFuture = _cargarReportes();
+    _stockAlertsFuture = _cargarAlertasStock();
   }
 
   void _mostrarGeneradorQr(BuildContext context) {
@@ -123,6 +125,35 @@ class _DashboardViewState extends State<DashboardView> {
     );
   }
 
+  Future<List<ProductoRegistroModel>> _cargarAlertasStock() async {
+    final response = await ApiService().getProductosRegistro();
+    if (!response.success) {
+      return const <ProductoRegistroModel>[];
+    }
+    final productos = response.data ?? const <ProductoRegistroModel>[];
+    final alertas = productos.where((producto) => producto.stock <= 5).toList();
+    alertas.sort((a, b) => a.stock.compareTo(b.stock));
+    return alertas;
+  }
+
+  void _refrescarDashboard() {
+    setState(() {
+      _reportesFuture = _cargarReportes();
+      _stockAlertsFuture = _cargarAlertasStock();
+    });
+  }
+
+  void _mostrarAlertasStock(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return _StockAlertsSheet(future: _stockAlertsFuture);
+      },
+    );
+  }
+
   List<ReporteModel> _reportesDesdeDashboard(ReportesDashboardModel data) {
     return [
       ReporteModel(
@@ -161,6 +192,16 @@ class _DashboardViewState extends State<DashboardView> {
         elevation: 0,
         title: Text(titles[_selectedIndex]),
         actions: [
+          FutureBuilder<List<ProductoRegistroModel>>(
+            future: _stockAlertsFuture,
+            builder: (context, snapshot) {
+              return _StockNotificationButton(
+                count: snapshot.data?.length ?? 0,
+                hasError: snapshot.hasError,
+                onTap: () => _mostrarAlertasStock(context),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Generar QR de pedido',
             onPressed: () => _mostrarGeneradorQr(context),
@@ -185,11 +226,7 @@ class _DashboardViewState extends State<DashboardView> {
           final pages = [
             _InicioSection(
               reportesFuture: _reportesFuture,
-              onRefresh: () {
-                setState(() {
-                  _reportesFuture = _cargarReportes();
-                });
-              },
+              onRefresh: _refrescarDashboard,
               ordenarReportes: _ordenarReportes,
             ),
             buildReportesSection(),
@@ -203,11 +240,10 @@ class _DashboardViewState extends State<DashboardView> {
 
           return RefreshIndicator(
             onRefresh: () async {
-              setState(() {
-                _reportesFuture = _cargarReportes();
-              });
+              _refrescarDashboard();
               try {
                 await _reportesFuture;
+                await _stockAlertsFuture;
               } catch (_) {
                 // El FutureBuilder muestra el error dentro de la pantalla.
               }
@@ -301,6 +337,333 @@ class _InicioSection extends StatelessWidget {
         const SizedBox(height: 18),
         const _VentasChartCard(),
       ],
+    );
+  }
+}
+
+class _StockNotificationButton extends StatelessWidget {
+  const _StockNotificationButton({
+    required this.count,
+    required this.hasError,
+    required this.onTap,
+  });
+
+  final int count;
+  final bool hasError;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasAlerts = count > 0;
+    return Padding(
+      padding: const EdgeInsets.only(right: 2),
+      child: IconButton(
+        tooltip: hasAlerts
+            ? '$count productos con stock bajo'
+            : hasError
+                ? 'No se pudieron cargar alertas'
+                : 'Sin alertas de stock',
+        onPressed: onTap,
+        icon: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: hasAlerts
+                    ? const Color(0xFFFFF4E5)
+                    : const Color(0xFFEAF3FF),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                hasAlerts
+                    ? Icons.notifications_active_outlined
+                    : Icons.notifications_none_outlined,
+                color: hasAlerts
+                    ? const Color(0xFFE69500)
+                    : const Color(0xFF2F6FED),
+              ),
+            ),
+            if (hasAlerts)
+              Positioned(
+                right: -2,
+                top: -4,
+                child: Container(
+                  constraints: const BoxConstraints(minWidth: 18),
+                  height: 18,
+                  padding: const EdgeInsets.symmetric(horizontal: 5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5484D),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: Colors.white, width: 2),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    count > 9 ? '9+' : '$count',
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StockAlertsSheet extends StatelessWidget {
+  const _StockAlertsSheet({required this.future});
+
+  final Future<List<ProductoRegistroModel>> future;
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.58,
+      minChildSize: 0.34,
+      maxChildSize: 0.88,
+      builder: (context, scrollController) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFFF7F9FC),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+          ),
+          child: FutureBuilder<List<ProductoRegistroModel>>(
+            future: future,
+            builder: (context, snapshot) {
+              final loading = snapshot.connectionState == ConnectionState.waiting;
+              final items = snapshot.data ?? const <ProductoRegistroModel>[];
+              return ListView(
+                controller: scrollController,
+                padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD0D5DD),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  Row(
+                    children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFF4E5),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Color(0xFFE69500),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Alertas de stock',
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              'Productos con 5 unidades o menos',
+                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                    color: const Color(0xFF667085),
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  if (loading)
+                    const Padding(
+                      padding: EdgeInsets.all(28),
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (snapshot.hasError)
+                    _StockAlertsMessage(
+                      icon: Icons.cloud_off_outlined,
+                      title: 'No se pudieron cargar',
+                      message: snapshot.error.toString(),
+                    )
+                  else if (items.isEmpty)
+                    const _StockAlertsMessage(
+                      icon: Icons.check_circle_outline,
+                      title: 'Sin alertas visibles',
+                      message:
+                          'No hay productos con stock bajo o no se pudo actualizar esta lista ahora.',
+                    )
+                  else
+                    for (var index = 0; index < items.length; index++) ...[
+                      _StockAlertTile(producto: items[index], index: index),
+                      const SizedBox(height: 10),
+                    ],
+                ],
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _StockAlertTile extends StatelessWidget {
+  const _StockAlertTile({
+    required this.producto,
+    required this.index,
+  });
+
+  final ProductoRegistroModel producto;
+  final int index;
+
+  @override
+  Widget build(BuildContext context) {
+    final critical = producto.stock <= 2;
+    final color = critical ? const Color(0xFFE5484D) : const Color(0xFFE69500);
+    final delaySteps = index < 6 ? index : 6;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: Duration(milliseconds: 220 + (delaySteps * 35)),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) {
+        return Opacity(
+          opacity: value,
+          child: Transform.translate(
+            offset: Offset(0, 12 * (1 - value)),
+            child: child,
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: color.withOpacity(0.18)),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.07),
+              blurRadius: 18,
+              offset: const Offset(0, 9),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.11),
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: Icon(Icons.inventory_2_outlined, color: color),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    producto.nombre,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${producto.codigo.isEmpty ? 'Sin codigo' : producto.codigo} - ${producto.categoria ?? 'Sin categoria'}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFF667085),
+                        ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.10),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '${producto.stock} uds',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: color,
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StockAlertsMessage extends StatelessWidget {
+  const _StockAlertsMessage({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE7EAF0)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: const Color(0xFF2F6FED), size: 34),
+          const SizedBox(height: 10),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF667085),
+                ),
+          ),
+        ],
+      ),
     );
   }
 }
