@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../features/repartidor/views/repartidor_view.dart';
 import '../providers/auth_provider.dart';
 import 'dashboard_view.dart';
 import 'tienda_view.dart';
@@ -54,9 +55,14 @@ class _LoginViewState extends State<LoginView> {
     });
 
     if (loginCorrecto) {
-      final destino = authProvider.isAdmin
-          ? const DashboardView()
-          : const TiendaView();
+      final Widget destino;
+      if (authProvider.isAdmin) {
+        destino = const DashboardView();
+      } else if (authProvider.user?.isRepartidor == true) {
+        destino = const RepartidorView();
+      } else {
+        destino = const TiendaView();
+      }
 
       Navigator.pushReplacement(
         context,

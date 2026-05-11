@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'features/repartidor/views/repartidor_view.dart';
 import 'providers/auth_provider.dart';
 import 'views/dashboard_view.dart';
 import 'views/login_view.dart';
@@ -30,10 +31,9 @@ class MyApp extends StatelessWidget {
       ),
       routes: {
         AppRoutes.login: (_) => const LoginView(),
-        AppRoutes.dashboard: (_) => const ProtectedRoute(
-              child: DashboardView(),
-            ),
+        AppRoutes.dashboard: (_) => const ProtectedRoute(child: DashboardView()),
         AppRoutes.tienda: (_) => const TiendaView(),
+        AppRoutes.repartidor: (_) => const RepartidorView(),
       },
       home: const AuthGate(),
     );
@@ -44,6 +44,7 @@ class AppRoutes {
   static const String login = '/login';
   static const String dashboard = '/dashboard';
   static const String tienda = '/tienda';
+  static const String repartidor = '/repartidor';
 }
 
 class AuthGate extends StatelessWidget {
@@ -63,7 +64,9 @@ class AuthGate extends StatelessWidget {
     }
 
     if (authStatus == AuthStatus.authenticated) {
-      return authProvider.isAdmin ? const DashboardView() : const TiendaView();
+      if (authProvider.isAdmin) return const DashboardView();
+      if (authProvider.user?.isRepartidor == true) return const RepartidorView();
+      return const TiendaView();
     }
 
     return const LoginView();
