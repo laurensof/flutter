@@ -42,6 +42,8 @@ class AuthProvider extends ChangeNotifier {
   String? get sessionCookie => _sessionCookie;
   String? get role => _user?.role;
   bool get isAdmin => _user?.isAdmin == true;
+  bool get canAccessApp =>
+      _user?.isSuperAdmin == true || _user?.isRepartidor == true;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
 
@@ -65,11 +67,15 @@ class AuthProvider extends ChangeNotifier {
 
     _authService.setAuthToken(_token);
     _authService.setSessionCookie(_sessionCookie);
-    _status = (_token != null && _token!.isNotEmpty) ||
-            (_sessionCookie != null && _sessionCookie!.isNotEmpty) ||
-            _user != null
+    final hasStoredSession = (_token != null && _token!.isNotEmpty) ||
+        (_sessionCookie != null && _sessionCookie!.isNotEmpty) ||
+        _user != null;
+    _status = hasStoredSession && canAccessApp
         ? AuthStatus.authenticated
         : AuthStatus.unauthenticated;
+    if (hasStoredSession && !canAccessApp) {
+      await _clearSession();
+    }
     notifyListeners();
   }
 
@@ -91,6 +97,16 @@ class AuthProvider extends ChangeNotifier {
     if (!response.success) {
       _errorMessage = response.message ?? 'Credenciales incorrectas';
       _status = AuthStatus.unauthenticated;
+      notifyListeners();
+      return false;
+    }
+
+    final user = response.user;
+    if (user?.isSuperAdmin != true && user?.isRepartidor != true) {
+      _errorMessage =
+          'Acceso permitido solo para Super Admin y Repartidores.';
+      _status = AuthStatus.unauthenticated;
+      await _clearSession();
       notifyListeners();
       return false;
     }

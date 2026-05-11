@@ -26,14 +26,40 @@ class UserModel {
   int? get id => idUsuario;
   int? get personaId => idPersona;
   String? get usuario => username;
-  bool get isAdmin => idTipo == 4;
+  bool get isSuperAdmin => idTipo == 4;
+  bool get isAdministrador => idTipo == 1;
+  bool get isAdmin => isSuperAdmin;
   bool get isRepartidor => idTipo == 5;
   bool get isActivo => estado?.toUpperCase() == 'ACTIVO';
-  String get role => isAdmin ? 'super_admin' : 'repartidor';
-  String get redirect => isAdmin ? 'admin_panel' : 'tienda';
-  String get rol {
+  String get role {
+    if (isSuperAdmin) {
+      return 'super_admin';
+    }
+    if (isAdministrador) {
+      return 'admin';
+    }
+    if (isRepartidor) {
+      return 'repartidor';
+    }
+    return 'usuario';
+  }
+
+  String get redirect {
     if (isAdmin) {
-      return 'SuperAdmin';
+      return 'admin_panel';
+    }
+    if (isRepartidor) {
+      return 'repartidor';
+    }
+    return 'tienda';
+  }
+
+  String get rol {
+    if (isSuperAdmin) {
+      return 'Super Admin';
+    }
+    if (isAdministrador) {
+      return 'Admin';
     }
     if (isRepartidor) {
       return 'Repartidor';
@@ -76,7 +102,7 @@ class UserModel {
             json['nombre_usuario'] ??
             json['NOMBRE_USUARIO'],
       ),
-      estado: _parseString(json['estado'] ?? json['ESTADO']),
+      estado: _parseEstado(json['estado'] ?? json['ESTADO']),
       nombre: _parseString(
         json['nombre'] ??
             json['nombres'] ??
@@ -133,6 +159,32 @@ class UserModel {
     }
     final text = value.toString().trim();
     return text.isEmpty ? null : text;
+  }
+
+  static String? _parseEstado(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is bool) {
+      return value ? 'ACTIVO' : 'INACTIVO';
+    }
+    if (value is num) {
+      return value == 1 ? 'ACTIVO' : 'INACTIVO';
+    }
+    final text = value.toString().trim();
+    if (text.isEmpty) {
+      return null;
+    }
+    final normalized = text.toUpperCase();
+    if (normalized == 'TRUE' || normalized == '1' || normalized == 'ACTIVO') {
+      return 'ACTIVO';
+    }
+    if (normalized == 'FALSE' ||
+        normalized == '0' ||
+        normalized == 'INACTIVO') {
+      return 'INACTIVO';
+    }
+    return text;
   }
 }
 

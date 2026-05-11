@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../features/repartidor/views/repartidor_view.dart';
 import '../providers/auth_provider.dart';
 import 'dashboard_view.dart';
-import 'tienda_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -56,12 +55,18 @@ class _LoginViewState extends State<LoginView> {
 
     if (loginCorrecto) {
       final Widget destino;
-      if (authProvider.isAdmin) {
+      if (authProvider.user?.isSuperAdmin == true) {
         destino = const DashboardView();
       } else if (authProvider.user?.isRepartidor == true) {
         destino = const RepartidorView();
       } else {
-        destino = const TiendaView();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Acceso permitido solo para Super Admin y Repartidores.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
       }
 
       Navigator.pushReplacement(

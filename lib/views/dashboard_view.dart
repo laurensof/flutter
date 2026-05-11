@@ -4044,6 +4044,10 @@ class _PerfilSection extends StatelessWidget {
             ),
           ],
         ),
+        if (user?.isSuperAdmin == true) ...[
+          const SizedBox(height: 18),
+          const _UsuariosEstadoAdminCard(),
+        ],
         const SizedBox(height: 18),
         FilledButton.icon(
           onPressed: () => showLogoutModal(context),
@@ -4163,6 +4167,287 @@ class _PerfilSectionCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _UsuariosEstadoAdminCard extends StatefulWidget {
+  const _UsuariosEstadoAdminCard();
+
+  @override
+  State<_UsuariosEstadoAdminCard> createState() =>
+      _UsuariosEstadoAdminCardState();
+}
+
+class _UsuariosEstadoAdminCardState extends State<_UsuariosEstadoAdminCard> {
+  late Future<List<UserModel>> _usuariosFuture;
+  final Set<int> _updatingIds = {};
+  final Map<int, bool> _estadoOverrides = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _usuariosFuture = _cargarUsuarios();
+  }
+
+  Future<List<UserModel>> _cargarUsuarios({bool forceRefresh = false}) async {
+    final response = await ApiService().getUsuariosAdministrables(
+      forceRefresh: forceRefresh,
+    );
+    if (!response.success) {
+      throw Exception(response.message ?? 'No se pudieron cargar los usuarios');
+    }
+    return response.data ?? const <UserModel>[];
+  }
+
+  Future<void> _actualizarEstado(UserModel usuario, bool activo) async {
+    final idUsuario = usuario.idUsuario;
+    if (idUsuario == null) {
+      return;
+    }
+
+    setState(() {
+      _updatingIds.add(idUsuario);
+      _estadoOverrides[idUsuario] = activo;
+    });
+
+    final response = await ApiService().actualizarEstadoUsuario(
+      idUsuario: idUsuario,
+      activo: activo,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (response.success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            activo ? 'Usuario activado.' : 'Usuario desactivado.',
+          ),
+        ),
+      );
+      setState(() {
+        _updatingIds.remove(idUsuario);
+        _usuariosFuture = _cargarUsuarios(forceRefresh: true);
+      });
+      return;
+    }
+
+    setState(() {
+      _updatingIds.remove(idUsuario);
+      _estadoOverrides.remove(idUsuario);
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          response.message ?? 'No se pudo actualizar el estado del usuario.',
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _PerfilSectionCard(
+      title: 'Administrar accesos',
+      children: [
+        FutureBuilder<List<UserModel>>(
+          future: _usuariosFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
+
+            if (snapshot.hasError) {
+              return _UsuariosEstadoMessage(
+                icon: Icons.cloud_off_outlined,
+                title: 'No se pudieron cargar',
+                message: snapshot.error.toString(),
+                onRetry: () {
+                  setState(() {
+                    _usuariosFuture = _cargarUsuarios(forceRefresh: true);
+                  });
+                },
+              );
+            }
+
+            final usuarios = snapshot.data ?? const <UserModel>[];
+            if (usuarios.isEmpty) {
+              return const _UsuariosEstadoMessage(
+                icon: Icons.group_off_outlined,
+                title: 'Sin usuarios',
+                message: 'No hay administradores o repartidores para mostrar.',
+              );
+            }
+
+            return Column(
+              children: [
+                for (var index = 0; index < usuarios.length; index++)
+                  _UsuarioEstadoTile(
+                    usuario: usuarios[index],
+                    isLast: index == usuarios.length - 1,
+                    isUpdating:
+                        _updatingIds.contains(usuarios[index].idUsuario),
+                    value: _estadoOverrides[usuarios[index].idUsuario] ??
+                        usuarios[index].isActivo,
+                    onChanged: usuarios[index].idUsuario == null
+                        ? null
+                        : (value) => _actualizarEstado(usuarios[index], value),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _UsuarioEstadoTile extends StatelessWidget {
+  const _UsuarioEstadoTile({
+    required this.usuario,
+    required this.value,
+    required this.isUpdating,
+    required this.isLast,
+    required this.onChanged,
+  });
+
+  final UserModel usuario;
+  final bool value;
+  final bool isUpdating;
+  final bool isLast;
+  final ValueChanged<bool>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final nombre = usuario.nombreCompleto ?? usuario.nombre ?? usuario.usuario;
+    final roleColor = usuario.isRepartidor
+        ? const Color(0xFF00A896)
+        : const Color(0xFF2F6FED);
+    final enabled = onChanged != null && !isUpdating;
+
+    return Container(
+      padding: EdgeInsets.only(top: 12, bottom: isLast ? 0 : 12),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: isLast
+              ? BorderSide.none
+              : const BorderSide(color: Color(0xFFE7EAF0)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: roleColor.withOpacity(0.11),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(
+              usuario.isRepartidor
+                  ? Icons.delivery_dining_outlined
+                  : Icons.admin_panel_settings_outlined,
+              color: roleColor,
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  nombre ?? 'Usuario sin nombre',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: const Color(0xFF344054),
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${usuario.rol} - @${usuario.usuario ?? 'sin usuario'}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF667085),
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          if (isUpdating)
+            const SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2.4),
+            )
+          else
+            Switch(
+              value: value,
+              onChanged: enabled ? onChanged : null,
+              activeColor: const Color(0xFF00A896),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UsuariosEstadoMessage extends StatelessWidget {
+  const _UsuariosEstadoMessage({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.onRetry,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: Column(
+        children: [
+          Icon(icon, color: const Color(0xFF2F6FED), size: 32),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF667085),
+                ),
+          ),
+          if (onRetry != null) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Reintentar'),
+            ),
+          ],
         ],
       ),
     );

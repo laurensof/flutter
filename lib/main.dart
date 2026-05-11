@@ -84,7 +84,7 @@ class AuthGate extends StatelessWidget {
     }
 
     if (authStatus == AuthStatus.authenticated) {
-      if (authProvider.isAdmin) return const DashboardView();
+      if (authProvider.user?.isSuperAdmin == true) return const DashboardView();
       if (authProvider.user?.isRepartidor == true) return const RepartidorView();
       return const TiendaView();
     }
@@ -113,7 +113,8 @@ class ProtectedRoute extends StatelessWidget {
       );
     }
 
-    if (authStatus != AuthStatus.authenticated) {
+    if (authStatus != AuthStatus.authenticated ||
+        context.read<AuthProvider>().user?.isSuperAdmin != true) {
       return const LoginView();
     }
 

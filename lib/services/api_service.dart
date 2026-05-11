@@ -8,6 +8,7 @@ import '../models/login_response.dart';
 import '../models/reportes_dashboard_model.dart';
 import '../models/reporte_model.dart';
 import '../models/registro_model.dart';
+import '../models/user_model.dart';
 import '../models/venta_grafico_model.dart';
 
 class ApiService {
@@ -319,6 +320,76 @@ class ApiService {
     );
   }
 
+  Future<ApiResponse<List<UserModel>>> getUsuariosAdministrables({
+    bool forceRefresh = false,
+  }) async {
+    final paths = [
+      '/usuarios?tipo=administrables',
+      '/usuarios?roles=1,5',
+      '/usuarios',
+      '/registro?tipo=usuarios',
+    ];
+
+    ApiResponse<List<UserModel>>? lastResponse;
+    for (final path in paths) {
+      final response = await _getUsuariosFromPath(
+        path,
+        forceRefresh: forceRefresh,
+      );
+      if (response.success) {
+        final usuarios = (response.data ?? const <UserModel>[])
+            .where((usuario) => usuario.isAdministrador || usuario.isRepartidor)
+            .toList();
+        return ApiResponse(
+          success: true,
+          data: usuarios,
+          statusCode: response.statusCode,
+          message: response.message,
+        );
+      }
+      lastResponse = response;
+    }
+
+    return lastResponse ??
+        const ApiResponse(
+          success: false,
+          message: 'No se pudieron cargar los usuarios.',
+        );
+  }
+
+  Future<ApiResponse<void>> actualizarEstadoUsuario({
+    required int idUsuario,
+    required bool activo,
+  }) async {
+    final estado = activo ? 'ACTIVO' : 'INACTIVO';
+    final body = {
+      'id_usuario': idUsuario,
+      'estado': estado,
+      'activo': activo,
+    };
+    final paths = [
+      '/usuarios?accion=estado',
+      '/usuarios?accion=actualizar_estado',
+      '/registro?tipo=usuarios&accion=estado',
+      '/registro?tipo=usuarios&accion=actualizar',
+    ];
+
+    ApiResponse<void>? lastResponse;
+    for (final path in paths) {
+      final response = await _postVoid(path, body);
+      if (response.success) {
+        return response;
+      }
+      lastResponse = response;
+    }
+
+    return lastResponse ??
+        const ApiResponse(
+          success: false,
+          message: 'No se pudo actualizar el estado del usuario.',
+        );
+  }
+
   Future<ApiResponse<void>> guardarProveedor(
     ProveedorRegistroModel proveedor,
   ) {
@@ -385,6 +456,45 @@ class ApiService {
       return const ApiResponse(
         success: false,
         message: 'Tiempo de espera agotado.',
+      );
+    } catch (e) {
+      return ApiResponse(success: false, message: _connectionErrorMessage(e));
+    }
+  }
+
+  Future<ApiResponse<List<UserModel>>> _getUsuariosFromPath(
+    String path, {
+    bool forceRefresh = false,
+  }) async {
+    final url = Uri.parse('$baseUrl$path');
+
+    try {
+      final response = await _get(url, forceRefresh: forceRefresh);
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic> && decoded is! List) {
+        return ApiResponse(
+          success: false,
+          statusCode: response.statusCode,
+          message: 'El backend no devolvio un JSON valido.',
+        );
+      }
+
+      final usuariosJson = _extractUsuariosList(decoded);
+      final usuarios = usuariosJson
+          .whereType<Map<String, dynamic>>()
+          .map(UserModel.fromJson)
+          .toList();
+
+      return ApiResponse(
+        success: response.statusCode >= 200 && response.statusCode < 300,
+        data: usuarios,
+        statusCode: response.statusCode,
+        message: decoded is Map<String, dynamic> ? _parseMessage(decoded) : null,
+      );
+    } on TimeoutException {
+      return const ApiResponse(
+        success: false,
+        message: 'Tiempo de espera agotado consultando usuarios.',
       );
     } catch (e) {
       return ApiResponse(success: false, message: _connectionErrorMessage(e));
@@ -522,6 +632,35 @@ class ApiService {
     }
     if (data is List) {
       return data;
+    }
+    return const [];
+  }
+
+  List<dynamic> _extractUsuariosList(dynamic json) {
+    if (json is List) {
+      return json;
+    }
+    if (json is! Map<String, dynamic>) {
+      return const [];
+    }
+
+    final data = json['data'];
+    if (json['usuarios'] is List) {
+      return json['usuarios'] as List<dynamic>;
+    }
+    if (json['users'] is List) {
+      return json['users'] as List<dynamic>;
+    }
+    if (data is List) {
+      return data;
+    }
+    if (data is Map<String, dynamic>) {
+      if (data['usuarios'] is List) {
+        return data['usuarios'] as List<dynamic>;
+      }
+      if (data['users'] is List) {
+        return data['users'] as List<dynamic>;
+      }
     }
     return const [];
   }
