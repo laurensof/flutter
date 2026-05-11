@@ -14,7 +14,17 @@ class PedidoCard extends StatelessWidget {
   final VoidCallback onVerMapa;
   final VoidCallback onCambiarEstado;
 
-  static const Map<String, _EstadoInfo> _estados = {
+  // Estados de ESTADO_PEDIDO (estado oficial del pedido, controlado por admin)
+  static const Map<String, _EstadoInfo> _estadosPedido = {
+    'PENDIENTE':  _EstadoInfo(Color(0xFFFFF3CD), Color(0xFF856404), Icons.schedule),
+    'PROCESADO':  _EstadoInfo(Color(0xFFE8EEFF), Color(0xFF3451B2), Icons.inventory_2),
+    'EN CAMINO':  _EstadoInfo(Color(0xFFCFE2FF), Color(0xFF084298), Icons.local_shipping),
+    'ENTREGADO':  _EstadoInfo(Color(0xFFD1E7DD), Color(0xFF0F5132), Icons.check_circle),
+    'CANCELADO':  _EstadoInfo(Color(0xFFF8D7DA), Color(0xFF842029), Icons.cancel),
+  };
+
+  // Estados de ENTREGA_PEDIDO (para lógica de acciones, no para el badge)
+  static const Map<String, _EstadoInfo> _estadosEntrega = {
     'PENDIENTE':     _EstadoInfo(Color(0xFFFFF3CD), Color(0xFF856404), Icons.schedule),
     'EN_CAMINO':     _EstadoInfo(Color(0xFFCFE2FF), Color(0xFF084298), Icons.local_shipping),
     'ENTREGADO':     _EstadoInfo(Color(0xFFD1E7DD), Color(0xFF0F5132), Icons.check_circle),
@@ -23,8 +33,10 @@ class PedidoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final estado = (pedido.estadoEntrega ?? pedido.estadoNombre ?? 'PENDIENTE').toUpperCase();
-    final info = _estados[estado] ?? const _EstadoInfo(Color(0xFFE2E8F0), Color(0xFF475569), Icons.help_outline);
+    final estadoBadge = (pedido.estadoEntrega ?? pedido.estadoNombre ?? 'PENDIENTE').toUpperCase();
+    final info = _estadosEntrega[estadoBadge]
+        ?? _estadosPedido[estadoBadge]
+        ?? const _EstadoInfo(Color(0xFFE2E8F0), Color(0xFF475569), Icons.help_outline);
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -58,7 +70,7 @@ class PedidoCard extends StatelessWidget {
                     children: [
                       Icon(info.icon, size: 12, color: info.textColor),
                       const SizedBox(width: 4),
-                      Text(estado.replaceAll('_', ' '), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: info.textColor)),
+                      Text(estadoBadge.replaceAll('_', ' '), style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: info.textColor)),
                     ],
                   ),
                 ),
