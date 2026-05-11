@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:provider/provider.dart';
 
@@ -521,14 +525,43 @@ class _MapaTab extends StatelessWidget {
 
 // ─── Tab Perfil ─────────────────────────────────────────────────────────────
 
-class _PerfilTab extends StatelessWidget {
+class _PerfilTab extends StatefulWidget {
   const _PerfilTab({required this.provider});
   final RepartidorProvider provider;
 
   @override
+  State<_PerfilTab> createState() => _PerfilTabState();
+}
+
+class _PerfilTabState extends State<_PerfilTab> {
+  bool _subiendoFoto = false;
+
+  Future<void> _cambiarFoto() async {
+    final picker = ImagePicker();
+    final picked = await picker.pickImage(
+      source: ImageSource.gallery,
+      imageQuality: 70,
+      maxWidth: 600,
+      maxHeight: 600,
+    );
+    if (picked == null || !mounted) return;
+
+    setState(() => _subiendoFoto = true);
+    final bytes = await File(picked.path).readAsBytes();
+    final base64Str = base64Encode(bytes);
+    final error = await widget.provider.subirFotoPerfil(base64Str);
+    if (!mounted) return;
+    setState(() => _subiendoFoto = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(error ?? 'Foto actualizada'),
+      backgroundColor: error == null ? const Color(0xFF30B566) : const Color(0xFFE5484D),
+    ));
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (provider.cargandoPerfil) return const Center(child: CircularProgressIndicator());
-    final p = provider.perfil;
+    if (widget.provider.cargandoPerfil) return const Center(child: CircularProgressIndicator());
+    final p = widget.provider.perfil;
     if (p == null) {
       return const Center(child: Text('No se pudo cargar el perfil', style: TextStyle(color: Color(0xFF667085))));
     }
@@ -548,11 +581,39 @@ class _PerfilTab extends StatelessWidget {
             ),
             child: Column(
               children: [
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: const BoxDecoration(color: Color(0xFFEAF3FF), shape: BoxShape.circle),
-                  child: const Icon(Icons.delivery_dining, color: Color(0xFF2F6FED), size: 40),
+                // Foto de perfil con botón de edición
+                Stack(
+                  alignment: Alignment.bottomRight,
+                  children: [
+                    _subiendoFoto
+                        ? const SizedBox(
+                            width: 88, height: 88,
+                            child: CircularProgressIndicator(strokeWidth: 3),
+                          )
+                        : CircleAvatar(
+                            radius: 44,
+                            backgroundColor: const Color(0xFFEAF3FF),
+                            backgroundImage: p.fotoPerfil != null
+                                ? MemoryImage(base64Decode(p.fotoPerfil!))
+                                : null,
+                            child: p.fotoPerfil == null
+                                ? const Icon(Icons.delivery_dining, color: Color(0xFF2F6FED), size: 44)
+                                : null,
+                          ),
+                    GestureDetector(
+                      onTap: _subiendoFoto ? null : _cambiarFoto,
+                      child: Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2F6FED),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 Text(p.nombreCompleto, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF101828))),

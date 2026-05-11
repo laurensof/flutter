@@ -108,6 +108,12 @@ class RepartidorProvider extends ChangeNotifier {
     return resp.success;
   }
 
+  Future<String?> subirFotoPerfil(String base64Foto) async {
+    final resp = await _service.subirFotoPerfil(base64Foto);
+    if (resp.success) await cargarPerfil();
+    return resp.success ? null : (resp.message ?? 'Error desconocido');
+  }
+
   Future<(int?, String?)> iniciarEntrega(int idPedido) async {
     final resp = await _service.iniciarEntrega(idPedido);
     if (resp.success) {

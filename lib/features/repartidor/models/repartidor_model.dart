@@ -16,6 +16,7 @@ class RepartidorModel {
     this.calificacion,
     this.latitud,
     this.longitud,
+    this.fotoPerfil,
   });
 
   final int idRepartidor;
@@ -34,6 +35,7 @@ class RepartidorModel {
   final double? calificacion;
   final double? latitud;
   final double? longitud;
+  final String? fotoPerfil; // base64
 
   String get nombreCompleto => '${nombres ?? ''} ${apellidos ?? ''}'.trim();
   bool get isActivo => estado?.toUpperCase() == 'ACTIVO';
@@ -56,6 +58,7 @@ class RepartidorModel {
       calificacion: _parseDouble(json['calificacion'] ?? json['CALIFICACION']),
       latitud: _parseDouble(json['latitud'] ?? json['LATITUD']),
       longitud: _parseDouble(json['longitud'] ?? json['LONGITUD']),
+      fotoPerfil: _str(json['foto_perfil'] ?? json['FOTO_PERFIL']),
     );
   }
 

@@ -59,6 +59,22 @@ class RepartidorService {
     }
   }
 
+  Future<ApiResponse<void>> subirFotoPerfil(String base64Foto) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/repartidor?accion=foto_perfil'),
+            headers: _headers,
+            body: jsonEncode({'foto_perfil': base64Foto}),
+          )
+          .timeout(_timeout);
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      return ApiResponse(success: json['success'] == true, message: json['message']?.toString());
+    } catch (e) {
+      return ApiResponse(success: false, message: 'Error de conexión: $e');
+    }
+  }
+
   Future<ApiResponse<int>> iniciarEntrega(int idPedido) async {
     try {
       final response = await http
