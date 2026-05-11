@@ -59,13 +59,42 @@ class RepartidorService {
     }
   }
 
-  Future<ApiResponse<void>> actualizarEstadoEntrega(int idEntrega, String nuevoEstado, {String? notas}) async {
+  Future<ApiResponse<int>> iniciarEntrega(int idPedido) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$_baseUrl/repartidor?accion=iniciar_entrega'),
+            headers: _headers,
+            body: jsonEncode({'id_pedido': idPedido}),
+          )
+          .timeout(_timeout);
+      final json = jsonDecode(response.body) as Map<String, dynamic>;
+      if (json['success'] == true) {
+        return ApiResponse(success: true, data: json['id_entrega'] as int?);
+      }
+      return ApiResponse(success: false, message: json['message']?.toString());
+    } catch (e) {
+      return ApiResponse(success: false, message: 'Error de conexión: $e');
+    }
+  }
+
+  Future<ApiResponse<void>> actualizarEstadoEntrega(
+    int idEntrega,
+    String nuevoEstado, {
+    String? notas,
+    String? firma,
+  }) async {
     try {
       final response = await http
           .post(
             Uri.parse('$_baseUrl/repartidor?accion=estado_entrega'),
             headers: _headers,
-            body: jsonEncode({'id_entrega': idEntrega, 'estado_entrega': nuevoEstado, 'notas': notas}),
+            body: jsonEncode({
+              'id_entrega': idEntrega,
+              'estado_entrega': nuevoEstado,
+              'notas': notas ?? '',
+              'firma': firma ?? '',
+            }),
           )
           .timeout(_timeout);
       final json = jsonDecode(response.body) as Map<String, dynamic>;

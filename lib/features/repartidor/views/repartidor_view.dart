@@ -8,6 +8,7 @@ import '../models/pedido_repartidor_model.dart';
 import '../providers/repartidor_provider.dart';
 import '../widgets/mapa_ruta_widget.dart';
 import '../widgets/pedido_card.dart';
+import 'firma_screen.dart';
 import 'qr_scanner_screen.dart';
 
 class RepartidorView extends StatefulWidget {
@@ -187,77 +188,244 @@ class _PedidosTab extends StatelessWidget {
     );
   }
 
-  void _mostrarCambioEstado(BuildContext context, PedidoRepartidorModel pedido) {
-    if (pedido.idEntrega == null) return;
-    const estados = ['PENDIENTE', 'EN_CAMINO', 'ENTREGADO', 'NO_ENTREGADO'];
-    final notasController = TextEditingController();
+  Future<void> _mostrarCambioEstado(BuildContext context, PedidoRepartidorModel pedido) async {
+    final estado = (pedido.estadoEntrega ?? 'PENDIENTE').toUpperCase();
 
-    showModalBottomSheet(
+    // Estados finales: no se puede cambiar
+    if (estado == 'ENTREGADO' || estado == 'NO_ENTREGADO') {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('El pedido ya está $estado'),
+        backgroundColor: const Color(0xFF667085),
+      ));
+      return;
+    }
+
+    // Si no tiene entrega creada, crearla primero
+    int? idEntrega = pedido.idEntrega;
+    if (idEntrega == null) {
+      final created = await provider.iniciarEntrega(pedido.idPedido);
+      if (!context.mounted) return;
+      if (created == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('No se pudo iniciar la entrega'),
+          backgroundColor: Color(0xFFE5484D),
+        ));
+        return;
+      }
+      idEntrega = created;
+    }
+
+    // Flujo según estado actual
+    if (estado == 'PENDIENTE') {
+      await _confirmarAccion(
+        context: context,
+        titulo: 'Iniciar entrega',
+        mensaje: '¿Confirmas que ya recogiste el pedido #${pedido.idPedido} y estás en camino?',
+        boton: 'Sí, estoy en camino',
+        color: const Color(0xFF2F6FED),
+        icono: Icons.local_shipping_outlined,
+        onConfirm: () => provider.actualizarEstadoEntrega(idEntrega!, 'EN_CAMINO'),
+      );
+    } else if (estado == 'EN_CAMINO') {
+      await _mostrarOpcionesFinalizacion(context, pedido, idEntrega);
+    }
+  }
+
+  Future<void> _confirmarAccion({
+    required BuildContext context,
+    required String titulo,
+    required String mensaje,
+    required String boton,
+    required Color color,
+    required IconData icono,
+    required Future<bool> Function() onConfirm,
+  }) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(icono, color: color, size: 22),
+            const SizedBox(width: 10),
+            Text(titulo, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          ],
+        ),
+        content: Text(mensaje, style: const TextStyle(color: Color(0xFF667085))),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar', style: TextStyle(color: Color(0xFF667085))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: color,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(boton, style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true || !context.mounted) return;
+    final result = await onConfirm();
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(result ? 'Estado actualizado' : 'Error al actualizar'),
+        backgroundColor: result ? const Color(0xFF30B566) : const Color(0xFFE5484D),
+      ));
+    }
+  }
+
+  Future<void> _mostrarOpcionesFinalizacion(
+    BuildContext context,
+    PedidoRepartidorModel pedido,
+    int idEntrega,
+  ) async {
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) {
-        String seleccionado = pedido.estadoEntrega?.toUpperCase() ?? 'PENDIENTE';
-        return StatefulBuilder(
-          builder: (ctx, setModalState) => Padding(
-            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-            child: Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Actualizar estado', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF101828))),
-                  const SizedBox(height: 16),
-                  ...estados.map((e) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(
-                          seleccionado == e ? Icons.check_circle : Icons.circle_outlined,
-                          color: seleccionado == e ? const Color(0xFF2F6FED) : const Color(0xFFD0D5DD),
-                        ),
-                        title: Text(e.replaceAll('_', ' '), style: const TextStyle(fontWeight: FontWeight.w500)),
-                        onTap: () => setModalState(() => seleccionado = e),
-                      )),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: notasController,
-                    decoration: InputDecoration(
-                      labelText: 'Notas (opcional)',
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    maxLines: 2,
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        Navigator.of(ctx).pop();
-                        final ok = await provider.actualizarEstadoEntrega(pedido.idEntrega!, seleccionado, notas: notasController.text);
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(ok ? 'Estado actualizado' : 'Error al actualizar'),
-                            backgroundColor: ok ? const Color(0xFF30B566) : const Color(0xFFE5484D),
-                          ));
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF2F6FED),
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      child: const Text('Confirmar', style: TextStyle(fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                ],
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40, height: 4,
+                decoration: BoxDecoration(color: const Color(0xFFD0D5DD), borderRadius: BorderRadius.circular(2)),
               ),
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 20),
+            const Text('¿Cómo finalizó la entrega?',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF101828))),
+            const SizedBox(height: 6),
+            Text('Pedido #${pedido.idPedido} · ${pedido.receptor}',
+                style: const TextStyle(color: Color(0xFF667085), fontSize: 13)),
+            const SizedBox(height: 24),
+
+            // Botón: Entregado (con firma)
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  if (!context.mounted) return;
+                  final firma = await Navigator.of(context).push<String>(
+                    MaterialPageRoute(builder: (_) => const FirmaScreen()),
+                  );
+                  if (firma == null || !context.mounted) return;
+                  final ok = await provider.actualizarEstadoEntrega(
+                    idEntrega, 'ENTREGADO', firma: firma,
+                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(ok ? 'Entrega confirmada con firma' : 'Error al confirmar'),
+                      backgroundColor: ok ? const Color(0xFF30B566) : const Color(0xFFE5484D),
+                    ));
+                  }
+                },
+                icon: const Icon(Icons.check_circle_outline),
+                label: const Text('Entregado — capturar firma del receptor',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF30B566),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Botón: No entregado (con notas)
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () async {
+                  Navigator.of(ctx).pop();
+                  if (!context.mounted) return;
+                  await _pedirNotasNoEntregado(context, idEntrega);
+                },
+                icon: const Icon(Icons.cancel_outlined),
+                label: const Text('No entregado — agregar motivo',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFFE5484D),
+                  side: const BorderSide(color: Color(0xFFE5484D)),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  Future<void> _pedirNotasNoEntregado(BuildContext context, int idEntrega) async {
+    final notasCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.cancel_outlined, color: Color(0xFFE5484D), size: 22),
+            SizedBox(width: 10),
+            Text('No entregado', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+          ],
+        ),
+        content: TextField(
+          controller: notasCtrl,
+          autofocus: true,
+          maxLines: 3,
+          decoration: InputDecoration(
+            hintText: 'Ej: Nadie en casa, dirección incorrecta...',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancelar', style: TextStyle(color: Color(0xFF667085))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE5484D),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Confirmar', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true || !context.mounted) return;
+    final result = await provider.actualizarEstadoEntrega(
+      idEntrega, 'NO_ENTREGADO', notas: notasCtrl.text,
+    );
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(result ? 'Marcado como no entregado' : 'Error al actualizar'),
+        backgroundColor: result ? const Color(0xFF667085) : const Color(0xFFE5484D),
+      ));
+    }
   }
 }
 

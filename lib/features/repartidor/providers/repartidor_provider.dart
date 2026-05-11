@@ -108,8 +108,19 @@ class RepartidorProvider extends ChangeNotifier {
     return resp.success;
   }
 
-  Future<bool> actualizarEstadoEntrega(int idEntrega, String nuevoEstado, {String? notas}) async {
-    final resp = await _service.actualizarEstadoEntrega(idEntrega, nuevoEstado, notas: notas);
+  Future<int?> iniciarEntrega(int idPedido) async {
+    final resp = await _service.iniciarEntrega(idPedido);
+    if (resp.success) await cargarPedidos();
+    return resp.data;
+  }
+
+  Future<bool> actualizarEstadoEntrega(
+    int idEntrega,
+    String nuevoEstado, {
+    String? notas,
+    String? firma,
+  }) async {
+    final resp = await _service.actualizarEstadoEntrega(idEntrega, nuevoEstado, notas: notas, firma: firma);
     if (resp.success) await cargarPedidos();
     return resp.success;
   }
