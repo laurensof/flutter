@@ -339,6 +339,19 @@ class ApiService {
     );
   }
 
+  Future<ApiResponse<void>> registrarTokenNotificacion({
+    required String token,
+    int? idUsuario,
+    String? username,
+  }) {
+    return _postVoid('/notificaciones?accion=registrar_token', {
+      'token': token,
+      if (idUsuario != null) 'id_usuario': idUsuario,
+      if (username != null && username.isNotEmpty) 'username': username,
+      'plataforma': 'android',
+    });
+  }
+
   Future<ApiResponse<List<T>>> _getList<T>(
     String path,
     T Function(Map<String, dynamic>) fromJson, {

@@ -1,14 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 
 import 'features/repartidor/views/repartidor_view.dart';
 import 'providers/auth_provider.dart';
+import 'services/firebase_push_service.dart';
+import 'services/notification_service.dart';
 import 'views/dashboard_view.dart';
 import 'views/login_view.dart';
 import 'views/tienda_view.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  final firebaseReady = await _tryInitializeFirebase();
+  await NotificationService.instance.initialize();
+  if (firebaseReady) {
+    await FirebasePushService.instance.initialize();
+  }
   runApp(
     ChangeNotifierProvider(
       create: (_) => AuthProvider()..initialize(),
@@ -17,13 +25,25 @@ void main() {
   );
 }
 
+Future<bool> _tryInitializeFirebase() async {
+  try {
+    await Firebase.initializeApp();
+    return true;
+  } on FirebaseException catch (error) {
+    debugPrint('Firebase disabled: ${error.message ?? error.code}');
+  } catch (error) {
+    debugPrint('Firebase disabled: $error');
+  }
+  return false;
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Admin App',
+      title: 'NAYLEX Store',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),

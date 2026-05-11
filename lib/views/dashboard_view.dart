@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -9,6 +11,8 @@ import '../models/user_model.dart';
 import '../models/venta_grafico_model.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../services/firebase_push_service.dart';
+import '../services/notification_service.dart';
 import '../widgets/logout_modal.dart';
 
 class DashboardView extends StatefulWidget {
@@ -18,16 +22,59 @@ class DashboardView extends StatefulWidget {
   State<DashboardView> createState() => _DashboardViewState();
 }
 
-class _DashboardViewState extends State<DashboardView> {
+class _DashboardViewState extends State<DashboardView>
+    with WidgetsBindingObserver {
   late Future<List<ReporteModel>> _reportesFuture;
   late Future<List<ProductoRegistroModel>> _stockAlertsFuture;
+  Timer? _stockAlertsTimer;
+  int? _lastPushUserId;
   int _selectedIndex = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _reportesFuture = _cargarReportes();
     _stockAlertsFuture = _cargarAlertasStock();
+    _startStockAlertsTimer();
+  }
+
+  @override
+  void dispose() {
+    _stockAlertsTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkStockAlerts();
+      return;
+    }
+    if (state == AppLifecycleState.paused) {
+      _checkStockAlerts();
+    }
+  }
+
+  void _startStockAlertsTimer() {
+    _stockAlertsTimer?.cancel();
+    _stockAlertsTimer = Timer.periodic(
+      const Duration(minutes: 10),
+      (_) => _checkStockAlerts(),
+    );
+  }
+
+  Future<void> _checkStockAlerts() async {
+    final future = _cargarAlertasStock(forceRefresh: true);
+    if (mounted) {
+      setState(() => _stockAlertsFuture = future);
+    }
+    try {
+      await future;
+    } catch (_) {
+      // La lista interna de alertas maneja el estado visual.
+    }
   }
 
   void _mostrarGeneradorQr(BuildContext context) {
@@ -143,6 +190,7 @@ class _DashboardViewState extends State<DashboardView> {
     final productos = response.data ?? const <ProductoRegistroModel>[];
     final alertas = productos.where((producto) => producto.stock <= 5).toList();
     alertas.sort((a, b) => a.stock.compareTo(b.stock));
+    await NotificationService.instance.showStockAlerts(alertas);
     return alertas;
   }
 
@@ -191,6 +239,17 @@ class _DashboardViewState extends State<DashboardView> {
     ];
   }
 
+  void _syncPushToken(UserModel? user) {
+    if (user == null || _lastPushUserId == user.idUsuario) {
+      return;
+    }
+
+    _lastPushUserId = user.idUsuario;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FirebasePushService.instance.syncUserToken(user);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     const titles = ['Inicio', 'Reportes', 'Registro', 'Perfil'];
@@ -227,6 +286,7 @@ class _DashboardViewState extends State<DashboardView> {
       body: Consumer<AuthProvider>(
         builder: (context, authProvider, _) {
           final user = authProvider.user;
+          _syncPushToken(user);
 
           Widget buildReportesSection() {
             return const _ReportesSection();
