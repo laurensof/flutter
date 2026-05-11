@@ -238,7 +238,7 @@ class _PedidosTab extends StatelessWidget {
     required String boton,
     required Color color,
     required IconData icono,
-    required Future<bool> Function() onConfirm,
+    required Future<String?> Function() onConfirm, // null = éxito, string = mensaje error
   }) async {
     final ok = await showDialog<bool>(
       context: context,
@@ -272,11 +272,12 @@ class _PedidosTab extends StatelessWidget {
     );
 
     if (ok != true || !context.mounted) return;
-    final result = await onConfirm();
+    final errorMsg = await onConfirm();
     if (context.mounted) {
+      final exito = errorMsg == null;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(result ? 'Estado actualizado' : 'Error al actualizar'),
-        backgroundColor: result ? const Color(0xFF30B566) : const Color(0xFFE5484D),
+        content: Text(exito ? 'Estado actualizado' : errorMsg),
+        backgroundColor: exito ? const Color(0xFF30B566) : const Color(0xFFE5484D),
       ));
     }
   }
@@ -325,13 +326,14 @@ class _PedidosTab extends StatelessWidget {
                     MaterialPageRoute(builder: (_) => const FirmaScreen()),
                   );
                   if (firma == null || !context.mounted) return;
-                  final ok = await provider.actualizarEstadoEntrega(
+                  final errorMsg = await provider.actualizarEstadoEntrega(
                     idEntrega, 'ENTREGADO', firma: firma,
                   );
                   if (context.mounted) {
+                    final exito = errorMsg == null;
                     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                      content: Text(ok ? 'Entrega confirmada con firma' : 'Error al confirmar'),
-                      backgroundColor: ok ? const Color(0xFF30B566) : const Color(0xFFE5484D),
+                      content: Text(exito ? 'Entrega confirmada con foto' : errorMsg),
+                      backgroundColor: exito ? const Color(0xFF30B566) : const Color(0xFFE5484D),
                     ));
                   }
                 },
@@ -417,13 +419,14 @@ class _PedidosTab extends StatelessWidget {
     );
 
     if (ok != true || !context.mounted) return;
-    final result = await provider.actualizarEstadoEntrega(
+    final errorMsg = await provider.actualizarEstadoEntrega(
       idEntrega, 'NO_ENTREGADO', notas: notasCtrl.text,
     );
     if (context.mounted) {
+      final exito = errorMsg == null;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(result ? 'Marcado como no entregado' : 'Error al actualizar'),
-        backgroundColor: result ? const Color(0xFF667085) : const Color(0xFFE5484D),
+        content: Text(exito ? 'Marcado como no entregado' : errorMsg),
+        backgroundColor: exito ? const Color(0xFF667085) : const Color(0xFFE5484D),
       ));
     }
   }
