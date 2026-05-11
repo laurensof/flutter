@@ -323,29 +323,46 @@ class ApiService {
   Future<ApiResponse<List<UserModel>>> getUsuariosAdministrables({
     bool forceRefresh = false,
   }) async {
-    final paths = [
-      '/usuarios?tipo=administrables',
-      '/usuarios?roles=1,5',
-      '/usuarios',
-      '/registro?tipo=usuarios',
+    final postRequests = [
+      _UsuariosRequest('/usuarios', {
+        'accion': 'listar',
+        'roles': [1, 5],
+      }),
+      _UsuariosRequest('/usuarios', {
+        'accion': 'administrables',
+        'roles': [1, 5],
+      }),
+      _UsuariosRequest('/registro?tipo=usuarios', {
+        'accion': 'listar',
+        'roles': [1, 5],
+      }),
+    ];
+
+    final getPaths = [
+      '/usuarios?accion=listar&roles=1,5',
+      '/usuarios?accion=administrables',
+      '/registro?tipo=usuarios&accion=listar',
     ];
 
     ApiResponse<List<UserModel>>? lastResponse;
-    for (final path in paths) {
+    for (final request in postRequests) {
+      final response = await _postUsuariosFromPath(
+        request.path,
+        request.body,
+      );
+      if (response.success) {
+        return _usuariosAdministrablesResponse(response);
+      }
+      lastResponse = response;
+    }
+
+    for (final path in getPaths) {
       final response = await _getUsuariosFromPath(
         path,
         forceRefresh: forceRefresh,
       );
       if (response.success) {
-        final usuarios = (response.data ?? const <UserModel>[])
-            .where((usuario) => usuario.isAdministrador || usuario.isRepartidor)
-            .toList();
-        return ApiResponse(
-          success: true,
-          data: usuarios,
-          statusCode: response.statusCode,
-          message: response.message,
-        );
+        return _usuariosAdministrablesResponse(response);
       }
       lastResponse = response;
     }
@@ -363,13 +380,16 @@ class ApiService {
   }) async {
     final estado = activo ? 'ACTIVO' : 'INACTIVO';
     final body = {
+      'accion': 'actualizar_estado',
       'id_usuario': idUsuario,
       'estado': estado,
       'activo': activo,
     };
     final paths = [
-      '/usuarios?accion=estado',
+      '/usuarios',
       '/usuarios?accion=actualizar_estado',
+      '/usuarios?accion=estado',
+      '/registro?tipo=usuarios',
       '/registro?tipo=usuarios&accion=estado',
       '/registro?tipo=usuarios&accion=actualizar',
     ];
@@ -388,6 +408,20 @@ class ApiService {
           success: false,
           message: 'No se pudo actualizar el estado del usuario.',
         );
+  }
+
+  ApiResponse<List<UserModel>> _usuariosAdministrablesResponse(
+    ApiResponse<List<UserModel>> response,
+  ) {
+    final usuarios = (response.data ?? const <UserModel>[])
+        .where((usuario) => usuario.isAdministrador || usuario.isRepartidor)
+        .toList();
+    return ApiResponse(
+      success: true,
+      data: usuarios,
+      statusCode: response.statusCode,
+      message: response.message,
+    );
   }
 
   Future<ApiResponse<void>> guardarProveedor(
@@ -470,6 +504,47 @@ class ApiService {
 
     try {
       final response = await _get(url, forceRefresh: forceRefresh);
+      final decoded = jsonDecode(response.body);
+      if (decoded is! Map<String, dynamic> && decoded is! List) {
+        return ApiResponse(
+          success: false,
+          statusCode: response.statusCode,
+          message: 'El backend no devolvio un JSON valido.',
+        );
+      }
+
+      final usuariosJson = _extractUsuariosList(decoded);
+      final usuarios = usuariosJson
+          .whereType<Map<String, dynamic>>()
+          .map(UserModel.fromJson)
+          .toList();
+
+      return ApiResponse(
+        success: response.statusCode >= 200 && response.statusCode < 300,
+        data: usuarios,
+        statusCode: response.statusCode,
+        message: decoded is Map<String, dynamic> ? _parseMessage(decoded) : null,
+      );
+    } on TimeoutException {
+      return const ApiResponse(
+        success: false,
+        message: 'Tiempo de espera agotado consultando usuarios.',
+      );
+    } catch (e) {
+      return ApiResponse(success: false, message: _connectionErrorMessage(e));
+    }
+  }
+
+  Future<ApiResponse<List<UserModel>>> _postUsuariosFromPath(
+    String path,
+    Map<String, dynamic> body,
+  ) async {
+    final url = Uri.parse('$baseUrl$path');
+
+    try {
+      final response = await _client
+          .post(url, headers: _headers, body: jsonEncode(body))
+          .timeout(_timeout);
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic> && decoded is! List) {
         return ApiResponse(
@@ -694,4 +769,11 @@ class _CachedGetResponse {
 
   final http.Response response;
   final DateTime fetchedAt;
+}
+
+class _UsuariosRequest {
+  const _UsuariosRequest(this.path, this.body);
+
+  final String path;
+  final Map<String, dynamic> body;
 }

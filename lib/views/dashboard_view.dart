@@ -68,7 +68,9 @@ class _DashboardViewState extends State<DashboardView>
   Future<void> _checkStockAlerts() async {
     final future = _cargarAlertasStock(forceRefresh: true);
     if (mounted) {
-      setState(() => _stockAlertsFuture = future);
+      setState(() {
+        _stockAlertsFuture = future;
+      });
     }
     try {
       await future;
@@ -181,17 +183,21 @@ class _DashboardViewState extends State<DashboardView>
   Future<List<ProductoRegistroModel>> _cargarAlertasStock({
     bool forceRefresh = false,
   }) async {
-    final response = await ApiService().getProductosRegistro(
-      forceRefresh: forceRefresh,
-    );
-    if (!response.success) {
+    try {
+      final response = await ApiService().getProductosRegistro(
+        forceRefresh: forceRefresh,
+      );
+      if (!response.success) {
+        return const <ProductoRegistroModel>[];
+      }
+      final productos = response.data ?? const <ProductoRegistroModel>[];
+      final alertas = productos.where((producto) => producto.stock <= 5).toList();
+      alertas.sort((a, b) => a.stock.compareTo(b.stock));
+      await NotificationService.instance.showStockAlerts(alertas);
+      return alertas;
+    } catch (_) {
       return const <ProductoRegistroModel>[];
     }
-    final productos = response.data ?? const <ProductoRegistroModel>[];
-    final alertas = productos.where((producto) => producto.stock <= 5).toList();
-    alertas.sort((a, b) => a.stock.compareTo(b.stock));
-    await NotificationService.instance.showStockAlerts(alertas);
-    return alertas;
   }
 
   void _refrescarDashboard() {
