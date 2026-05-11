@@ -35,8 +35,8 @@ class _MapaRutaWidgetState extends State<MapaRutaWidget> {
   bool _modoNavegacion = true;
   bool _mapListo = false;
 
-  static const double _zoomNav  = 19;
-  static const double _zoomLibre = 15;
+  static const double _zoomNav  = 19.5;
+  static const double _zoomLibre = 15.0;
 
   @override
   void initState() {
@@ -108,13 +108,37 @@ class _MapaRutaWidgetState extends State<MapaRutaWidget> {
               ),
             MarkerLayer(
               markers: [
-                // Marcador repartidor — siempre alineado a la pantalla
+                // rotate: false → el marcador rota CON el mapa.
+                // La flecha dentro tiene heading aplicado.
+                // Efecto neto: flecha apunta siempre en la dirección real
+                // (cuando mapa rota -heading y flecha rota +heading → apunta norte/sur/etc correcto).
                 Marker(
                   point: widget.posicionActual,
                   width: 56,
                   height: 56,
-                  rotate: true, // se mantiene alineado con la pantalla, no rota con el mapa
-                  child: _buildCarMarker(),
+                  rotate: false,
+                  child: Transform.rotate(
+                    angle: widget.heading * math.pi / 180,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF101828),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 3),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.35),
+                            blurRadius: 10,
+                            spreadRadius: 1,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.navigation_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ),
                 ),
                 if (destino != null)
                   Marker(
@@ -127,7 +151,12 @@ class _MapaRutaWidgetState extends State<MapaRutaWidget> {
                         color: const Color(0xFFE5484D),
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 3),
-                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 8)],
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.25),
+                            blurRadius: 8,
+                          ),
+                        ],
                       ),
                       child: const Icon(Icons.location_on, color: Colors.white, size: 24),
                     ),
@@ -137,7 +166,7 @@ class _MapaRutaWidgetState extends State<MapaRutaWidget> {
           ],
         ),
 
-        // Banner instrucción
+        // Banner instrucción de navegación
         if (widget.instruccionActual != null)
           Positioned(
             top: 12,
@@ -148,7 +177,9 @@ class _MapaRutaWidgetState extends State<MapaRutaWidget> {
               decoration: BoxDecoration(
                 color: const Color(0xFF2F6FED),
                 borderRadius: BorderRadius.circular(14),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 8)],
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 8),
+                ],
               ),
               child: Row(
                 children: [
@@ -169,18 +200,41 @@ class _MapaRutaWidgetState extends State<MapaRutaWidget> {
             ),
           ),
 
-        // Botón brújula / modo navegación
+        // Botón modo navegación (el mismo estilo de antes)
         Positioned(
           top: 12,
           right: 12,
-          child: _CompassButton(
-            activo: _modoNavegacion,
-            heading: widget.heading,
+          child: GestureDetector(
             onTap: _toggleModo,
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: _modoNavegacion ? const Color(0xFF2F6FED) : Colors.white,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.2),
+                    blurRadius: 6,
+                  ),
+                ],
+                border: Border.all(
+                  color: _modoNavegacion
+                      ? const Color(0xFF2F6FED)
+                      : const Color(0xFFD0D5DD),
+                  width: 1.5,
+                ),
+              ),
+              child: Icon(
+                Icons.navigation_rounded,
+                color: _modoNavegacion ? Colors.white : const Color(0xFF667085),
+                size: 22,
+              ),
+            ),
           ),
         ),
 
-        // Indicador de carga de ruta
+        // Loader ruta
         if (widget.cargando)
           const Center(
             child: Card(
@@ -189,7 +243,11 @@ class _MapaRutaWidgetState extends State<MapaRutaWidget> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
                     SizedBox(width: 12),
                     Text('Calculando ruta...'),
                   ],
@@ -198,63 +256,6 @@ class _MapaRutaWidgetState extends State<MapaRutaWidget> {
             ),
           ),
       ],
-    );
-  }
-
-  // En modo navegación: flecha apunta siempre hacia arriba (= dirección de avance)
-  // En modo libre: flecha rotada para mostrar el heading real (norte = arriba)
-  Widget _buildCarMarker() {
-    final angle = _modoNavegacion ? 0.0 : widget.heading * math.pi / 180;
-    return Transform.rotate(
-      angle: angle,
-      child: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xFF101828),
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.white, width: 3),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.35), blurRadius: 10, spreadRadius: 1)],
-        ),
-        child: const Icon(Icons.navigation_rounded, color: Colors.white, size: 28),
-      ),
-    );
-  }
-}
-
-// Brújula que muestra la orientación norte cuando el mapa está rotado
-class _CompassButton extends StatelessWidget {
-  const _CompassButton({required this.activo, required this.heading, required this.onTap});
-
-  final bool activo;
-  final double heading;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 48,
-        height: 48,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 8)],
-        ),
-        child: Center(
-          child: Transform.rotate(
-            // La aguja roja de la brújula apunta al norte real
-            // Cuando mapa está rotado -heading, la aguja rota +heading para compensar → apunta norte
-            angle: activo ? heading * math.pi / 180 : 0,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(width: 4, height: 12, decoration: const BoxDecoration(color: Color(0xFFE5484D), borderRadius: BorderRadius.vertical(top: Radius.circular(2)))),
-                Container(width: 4, height: 12, decoration: const BoxDecoration(color: Color(0xFF667085), borderRadius: BorderRadius.vertical(bottom: Radius.circular(2)))),
-              ],
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
