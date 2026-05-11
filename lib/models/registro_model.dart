@@ -25,7 +25,7 @@ class ProveedorRegistroModel {
       direccion: _parseString(json['direccion'] ?? json['DIRECCION']),
       telefono: _parseString(json['telefono'] ?? json['TELEFONO']),
       correo: _parseString(json['correo'] ?? json['CORREO']),
-      estado: _parseString(json['estado'] ?? json['ESTADO'], fallback: 'ACTIVO'),
+      estado: _parseEstado(json['estado'] ?? json['ESTADO']),
     );
   }
 
@@ -37,7 +37,7 @@ class ProveedorRegistroModel {
       'direccion': direccion,
       'telefono': telefono,
       'correo': correo,
-      'estado': estado,
+      'estado': _estadoToApiString(estado),
     };
   }
 }
@@ -93,7 +93,7 @@ class ProductoRegistroModel {
       codigo: _parseString(json['codigo'] ?? json['CODIGO']),
       descripcion: _parseString(json['descripcion'] ?? json['DESCRIPCION']),
       precio: _parseDouble(json['precio'] ?? json['PRECIO']) ?? 0,
-      estado: _parseString(json['estado'] ?? json['ESTADO'], fallback: 'ACTIVO'),
+      estado: _parseEstado(json['estado'] ?? json['ESTADO']),
       idCategoria: _parseInt(json['id_categoria'] ?? json['ID_CATEGORIA']) ?? 0,
       categoria: _parseStringOrNull(json['categoria'] ?? json['CATEGORIA']),
       stock: _parseInt(json['stock'] ?? json['STOCK']) ?? 0,
@@ -109,7 +109,7 @@ class ProductoRegistroModel {
       'codigo': codigo,
       'descripcion': descripcion,
       'precio': precio,
-      'estado': estado,
+      'estado': _estadoToApiString(estado),
       'id_categoria': idCategoria,
       if (stockInicial != null) 'stock_inicial': stockInicial,
       if (idProveedor != null) 'id_proveedor': idProveedor,
@@ -151,4 +151,22 @@ double? _parseDouble(dynamic value) {
     return double.tryParse(value.trim());
   }
   return null;
+}
+
+String _parseEstado(dynamic value) {
+  if (value is bool) {
+    return value ? 'ACTIVO' : 'INACTIVO';
+  }
+  if (value is num) {
+    return value == 0 ? 'INACTIVO' : 'ACTIVO';
+  }
+  final text = _parseString(value, fallback: 'ACTIVO').toUpperCase();
+  if (text == 'FALSE' || text == '0' || text == 'NO' || text == 'INACTIVO') {
+    return 'INACTIVO';
+  }
+  return 'ACTIVO';
+}
+
+String _estadoToApiString(String estado) {
+  return estado.toUpperCase() == 'ACTIVO' ? 'true' : 'false';
 }

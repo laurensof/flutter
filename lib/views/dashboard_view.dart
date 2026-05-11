@@ -2099,7 +2099,7 @@ class _ProveedoresListState extends State<_ProveedoresList> {
         return _RegistroListTile(
           title: item.nombre,
           subtitle: '${item.rut} - ${item.telefono}',
-          trailing: item.estado,
+          trailing: _estadoLabel(item.estado),
           icon: Icons.business,
           accentColor: const Color(0xFF2F6FED),
           onEdit: () => widget.onEdit(item),
@@ -2468,6 +2468,10 @@ class _RegistroListTileState extends State<_RegistroListTile> {
       ),
     );
   }
+}
+
+String _estadoLabel(String estado) {
+  return estado.toUpperCase() == 'ACTIVO' ? 'Activo' : 'Inactivo';
 }
 
 class _ProveedorForm extends StatefulWidget {
