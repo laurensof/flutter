@@ -2594,12 +2594,26 @@ class _ProductoFormState extends State<_ProductoForm> {
   late final TextEditingController _codigo;
   late final TextEditingController _precio;
   late final TextEditingController _descripcion;
-  late final TextEditingController _stockInicial;
+  late final TextEditingController _numeroReferencia;
+  late final TextEditingController _marcaReferencia;
+  late final TextEditingController _fabricanteReferencia;
+  late final TextEditingController _especificacionesReferencia;
+  late final TextEditingController _imagenUrl;
+  late final TextEditingController _stockCompatibilidad;
+  late final TextEditingController _anoInicio;
+  late final TextEditingController _anoFin;
+  late final TextEditingController _marcaVehiculo;
+  late final TextEditingController _modeloVehiculo;
+  late final TextEditingController _motor;
+  late final TextEditingController _transmision;
+  late final TextEditingController _tipoMaquinaria;
+  late final TextEditingController _marcaMaquinaria;
+  late final TextEditingController _modeloMaquinaria;
+  late final TextEditingController _componente;
   String _estado = 'ACTIVO';
+  String _tipoCompatibilidad = 'vehiculo';
   int? _idCategoria;
-  int? _idProveedor;
   late Future<List<CategoriaRegistroModel>> _categoriasFuture;
-  late Future<List<ProveedorRegistroModel>> _proveedoresFuture;
   bool _saving = false;
 
   @override
@@ -2612,11 +2626,25 @@ class _ProductoFormState extends State<_ProductoForm> {
       text: producto == null ? '' : producto.precio.toStringAsFixed(2),
     );
     _descripcion = TextEditingController(text: producto?.descripcion ?? '');
-    _stockInicial = TextEditingController();
+    _numeroReferencia = TextEditingController();
+    _marcaReferencia = TextEditingController();
+    _fabricanteReferencia = TextEditingController();
+    _especificacionesReferencia = TextEditingController();
+    _imagenUrl = TextEditingController();
+    _stockCompatibilidad = TextEditingController(text: '0');
+    _anoInicio = TextEditingController();
+    _anoFin = TextEditingController();
+    _marcaVehiculo = TextEditingController();
+    _modeloVehiculo = TextEditingController();
+    _motor = TextEditingController();
+    _transmision = TextEditingController();
+    _tipoMaquinaria = TextEditingController();
+    _marcaMaquinaria = TextEditingController();
+    _modeloMaquinaria = TextEditingController();
+    _componente = TextEditingController();
     _estado = producto?.estado ?? 'ACTIVO';
     _idCategoria = producto?.idCategoria == 0 ? null : producto?.idCategoria;
     _categoriasFuture = _loadCategorias();
-    _proveedoresFuture = _loadProveedores();
   }
 
   Future<List<CategoriaRegistroModel>> _loadCategorias() async {
@@ -2627,21 +2655,28 @@ class _ProductoFormState extends State<_ProductoForm> {
     return response.data ?? const [];
   }
 
-  Future<List<ProveedorRegistroModel>> _loadProveedores() async {
-    final response = await ApiService().getProveedores();
-    if (!response.success) {
-      throw Exception(response.message ?? 'No se pudieron cargar proveedores');
-    }
-    return response.data ?? const [];
-  }
-
   @override
   void dispose() {
     _nombre.dispose();
     _codigo.dispose();
     _precio.dispose();
     _descripcion.dispose();
-    _stockInicial.dispose();
+    _numeroReferencia.dispose();
+    _marcaReferencia.dispose();
+    _fabricanteReferencia.dispose();
+    _especificacionesReferencia.dispose();
+    _imagenUrl.dispose();
+    _stockCompatibilidad.dispose();
+    _anoInicio.dispose();
+    _anoFin.dispose();
+    _marcaVehiculo.dispose();
+    _modeloVehiculo.dispose();
+    _motor.dispose();
+    _transmision.dispose();
+    _tipoMaquinaria.dispose();
+    _marcaMaquinaria.dispose();
+    _modeloMaquinaria.dispose();
+    _componente.dispose();
     super.dispose();
   }
 
@@ -2650,13 +2685,33 @@ class _ProductoFormState extends State<_ProductoForm> {
       return;
     }
     final isCreating = widget.producto == null;
-    final stockInicial = int.tryParse(_stockInicial.text.trim()) ?? 0;
-    if (isCreating && _idProveedor == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecciona el proveedor del stock inicial')),
-      );
+    if (isCreating && !_validarCompatibilidad()) {
       return;
     }
+    final referencia = isCreating
+        ? ReferenciaRegistroModel(
+            numeroReferencia: _numeroReferencia.text.trim(),
+            marca: _marcaReferencia.text.trim(),
+            fabricante: _fabricanteReferencia.text.trim(),
+            especificaciones: _especificacionesReferencia.text.trim(),
+          )
+        : null;
+    final compatibilidad = isCreating
+        ? CompatibilidadRegistroModel(
+            tipo: _tipoCompatibilidad,
+            stock: int.tryParse(_stockCompatibilidad.text.trim()) ?? 0,
+            anoInicio: int.tryParse(_anoInicio.text.trim()) ?? 0,
+            anoFin: int.tryParse(_anoFin.text.trim()) ?? 0,
+            marcaVehiculo: _marcaVehiculo.text.trim(),
+            modeloVehiculo: _modeloVehiculo.text.trim(),
+            motor: _motor.text.trim(),
+            transmision: _transmision.text.trim(),
+            tipoMaquinaria: _tipoMaquinaria.text.trim(),
+            marcaMaquinaria: _marcaMaquinaria.text.trim(),
+            modeloMaquinaria: _modeloMaquinaria.text.trim(),
+            componente: _componente.text.trim(),
+          )
+        : null;
     setState(() => _saving = true);
     final producto = ProductoRegistroModel(
       idProducto: widget.producto?.idProducto,
@@ -2666,8 +2721,9 @@ class _ProductoFormState extends State<_ProductoForm> {
       precio: double.tryParse(_precio.text.trim()) ?? 0,
       estado: _estado,
       idCategoria: _idCategoria!,
-      stockInicial: isCreating ? stockInicial : null,
-      idProveedor: isCreating ? _idProveedor : null,
+      referencia: referencia,
+      compatibilidad: compatibilidad,
+      imagenUrl: isCreating ? _imagenUrl.text.trim() : null,
     );
     final response = await ApiService().guardarProducto(producto);
     if (!mounted) {
@@ -2730,74 +2786,126 @@ class _ProductoFormState extends State<_ProductoForm> {
             ),
             const SizedBox(height: 14),
             _RegistroTextField(controller: _precio, label: 'Precio'),
-            if (widget.producto == null) ...[
-              _RegistroTextField(
-                controller: _stockInicial,
-                label: 'Stock inicial',
-                keyboardType: TextInputType.number,
-                validator: (value) {
-                  final text = value.trim();
-                  if (text.isEmpty) {
-                    return 'Ingresa el stock inicial';
-                  }
-                  final stock = int.tryParse(text);
-                  if (stock == null || stock < 0) {
-                    return 'Ingresa un numero valido';
-                  }
-                  return null;
-                },
-              ),
-              FutureBuilder<List<ProveedorRegistroModel>>(
-                future: _proveedoresFuture,
-                builder: (context, snapshot) {
-                  final proveedores = _uniqueProveedores(snapshot.data ?? const []);
-                  final selectedProvider = proveedores.any(
-                    (proveedor) => proveedor.idProveedor == _idProveedor,
-                  )
-                      ? _idProveedor
-                      : null;
-                  if (_idProveedor != null && selectedProvider == null) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) {
-                        setState(() => _idProveedor = null);
-                      }
-                    });
-                  }
-                  return DropdownButtonFormField<int>(
-                    value: selectedProvider,
-                    decoration: _inputDecoration('Proveedor del stock'),
-                    items: [
-                      for (final proveedor in proveedores)
-                        if (proveedor.idProveedor != null)
-                          DropdownMenuItem(
-                            value: proveedor.idProveedor,
-                            child: Text(proveedor.nombre),
-                          ),
-                    ],
-                    onChanged: (value) => setState(() => _idProveedor = value),
-                    validator: (value) {
-                      if (value == null) {
-                        return 'Selecciona proveedor';
-                      }
-                      return null;
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 14),
-              const _InfoPanel(
-                icon: Icons.receipt_long,
-                title: 'Entrada inicial',
-                message:
-                    'El stock se registrara como una compra inicial del proveedor seleccionado.',
-              ),
-            ],
             _RegistroTextField(
               controller: _descripcion,
               label: 'Descripcion',
               maxLines: 4,
               required: false,
             ),
+            if (widget.producto == null) ...[
+              const SizedBox(height: 4),
+              const _RegistroSectionTitle(
+                icon: Icons.tag,
+                title: 'Referencia',
+              ),
+              _RegistroTextField(
+                controller: _numeroReferencia,
+                label: 'Numero de referencia',
+              ),
+              _RegistroTextField(
+                controller: _marcaReferencia,
+                label: 'Marca de referencia',
+              ),
+              _RegistroTextField(
+                controller: _fabricanteReferencia,
+                label: 'Fabricante',
+              ),
+              _RegistroTextField(
+                controller: _especificacionesReferencia,
+                label: 'Especificaciones',
+                maxLines: 3,
+                required: false,
+              ),
+              _RegistroTextField(
+                controller: _imagenUrl,
+                label: 'URL de imagen',
+                required: false,
+              ),
+              const SizedBox(height: 4),
+              const _RegistroSectionTitle(
+                icon: Icons.hub_outlined,
+                title: 'Compatibilidad y stock',
+              ),
+              DropdownButtonFormField<String>(
+                value: _tipoCompatibilidad,
+                decoration: _inputDecoration('Tipo de compatibilidad'),
+                items: const [
+                  DropdownMenuItem(value: 'vehiculo', child: Text('Vehiculo')),
+                  DropdownMenuItem(
+                    value: 'maquinaria',
+                    child: Text('Maquinaria'),
+                  ),
+                ],
+                onChanged: (value) {
+                  if (value != null) {
+                    setState(() => _tipoCompatibilidad = value);
+                  }
+                },
+              ),
+              const SizedBox(height: 14),
+              if (_tipoCompatibilidad == 'vehiculo') ...[
+                _RegistroTextField(
+                  controller: _marcaVehiculo,
+                  label: 'Marca vehiculo',
+                ),
+                _RegistroTextField(
+                  controller: _modeloVehiculo,
+                  label: 'Modelo vehiculo',
+                ),
+                _RegistroTextField(
+                  controller: _motor,
+                  label: 'Motor',
+                  required: false,
+                ),
+                _RegistroTextField(
+                  controller: _transmision,
+                  label: 'Transmision',
+                  required: false,
+                ),
+              ] else ...[
+                _RegistroTextField(
+                  controller: _tipoMaquinaria,
+                  label: 'Tipo maquinaria',
+                ),
+                _RegistroTextField(
+                  controller: _marcaMaquinaria,
+                  label: 'Marca maquinaria',
+                ),
+                _RegistroTextField(
+                  controller: _modeloMaquinaria,
+                  label: 'Modelo maquinaria',
+                ),
+                _RegistroTextField(
+                  controller: _componente,
+                  label: 'Componente',
+                  required: false,
+                ),
+              ],
+              Row(
+                children: [
+                  Expanded(
+                    child: _RegistroTextField(
+                      controller: _anoInicio,
+                      label: 'Año inicio',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _RegistroTextField(
+                      controller: _anoFin,
+                      label: 'Año fin',
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                ],
+              ),
+              _RegistroTextField(
+                controller: _stockCompatibilidad,
+                label: 'Stock',
+                keyboardType: TextInputType.number,
+              ),
+            ],
             _EstadoDropdown(value: _estado, onChanged: (v) => setState(() => _estado = v)),
             if (widget.producto != null) ...[
               const SizedBox(height: 12),
@@ -2823,15 +2931,54 @@ class _ProductoFormState extends State<_ProductoForm> {
     ];
   }
 
-  List<ProveedorRegistroModel> _uniqueProveedores(
-    List<ProveedorRegistroModel> proveedores,
-  ) {
-    final seen = <int>{};
-    return [
-      for (final proveedor in proveedores)
-        if (proveedor.idProveedor != null && seen.add(proveedor.idProveedor!))
-          proveedor,
-    ];
+  bool _validarCompatibilidad() {
+    final anoInicio = int.tryParse(_anoInicio.text.trim());
+    final anoFin = int.tryParse(_anoFin.text.trim());
+    final stock = int.tryParse(_stockCompatibilidad.text.trim());
+    if (anoInicio == null || anoFin == null || anoFin < anoInicio) {
+      _showFormError('Revisa el rango de años de la compatibilidad');
+      return false;
+    }
+    if (stock == null || stock < 0) {
+      _showFormError('Ingresa un stock valido');
+      return false;
+    }
+    return true;
+  }
+
+  void _showFormError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
+  }
+}
+
+class _RegistroSectionTitle extends StatelessWidget {
+  const _RegistroSectionTitle({
+    required this.icon,
+    required this.title,
+  });
+
+  final IconData icon;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: const Color(0xFF2F6FED)),
+          const SizedBox(width: 8),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

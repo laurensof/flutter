@@ -70,8 +70,9 @@ class ProductoRegistroModel {
     required this.idCategoria,
     this.categoria,
     this.stock = 0,
-    this.stockInicial,
-    this.idProveedor,
+    this.referencia,
+    this.compatibilidad,
+    this.imagenUrl,
   });
 
   final int? idProducto;
@@ -83,8 +84,9 @@ class ProductoRegistroModel {
   final int idCategoria;
   final String? categoria;
   final int stock;
-  final int? stockInicial;
-  final int? idProveedor;
+  final ReferenciaRegistroModel? referencia;
+  final CompatibilidadRegistroModel? compatibilidad;
+  final String? imagenUrl;
 
   factory ProductoRegistroModel.fromJson(Map<String, dynamic> json) {
     return ProductoRegistroModel(
@@ -97,8 +99,7 @@ class ProductoRegistroModel {
       idCategoria: _parseInt(json['id_categoria'] ?? json['ID_CATEGORIA']) ?? 0,
       categoria: _parseStringOrNull(json['categoria'] ?? json['CATEGORIA']),
       stock: _parseInt(json['stock'] ?? json['STOCK']) ?? 0,
-      stockInicial: _parseInt(json['stock_inicial'] ?? json['STOCK_INICIAL']),
-      idProveedor: _parseInt(json['id_proveedor'] ?? json['ID_PROVEEDOR']),
+      imagenUrl: _parseStringOrNull(json['imagen_url'] ?? json['URL']),
     );
   }
 
@@ -111,8 +112,84 @@ class ProductoRegistroModel {
       'precio': precio,
       'estado': _estadoToApiString(estado),
       'id_categoria': idCategoria,
-      if (stockInicial != null) 'stock_inicial': stockInicial,
-      if (idProveedor != null) 'id_proveedor': idProveedor,
+      if (referencia != null) 'referencia': referencia!.toJson(),
+      if (compatibilidad != null)
+        'compatibilidades': [compatibilidad!.toJson()],
+      if (imagenUrl != null && imagenUrl!.trim().isNotEmpty)
+        'imagen_url': imagenUrl!.trim(),
+    };
+  }
+}
+
+class ReferenciaRegistroModel {
+  const ReferenciaRegistroModel({
+    required this.numeroReferencia,
+    required this.marca,
+    required this.fabricante,
+    this.especificaciones = '',
+  });
+
+  final String numeroReferencia;
+  final String marca;
+  final String fabricante;
+  final String especificaciones;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'numero_referencia': numeroReferencia,
+      'marca': marca,
+      'fabricante': fabricante,
+      'especificaciones': especificaciones,
+    };
+  }
+}
+
+class CompatibilidadRegistroModel {
+  const CompatibilidadRegistroModel({
+    required this.tipo,
+    required this.stock,
+    required this.anoInicio,
+    required this.anoFin,
+    this.marcaVehiculo = '',
+    this.modeloVehiculo = '',
+    this.motor = '',
+    this.transmision = '',
+    this.tipoMaquinaria = '',
+    this.marcaMaquinaria = '',
+    this.modeloMaquinaria = '',
+    this.componente = '',
+    this.notas = '',
+  });
+
+  final String tipo;
+  final int stock;
+  final int anoInicio;
+  final int anoFin;
+  final String marcaVehiculo;
+  final String modeloVehiculo;
+  final String motor;
+  final String transmision;
+  final String tipoMaquinaria;
+  final String marcaMaquinaria;
+  final String modeloMaquinaria;
+  final String componente;
+  final String notas;
+
+  Map<String, dynamic> toJson() {
+    return {
+      'tipo': tipo,
+      'stock': stock,
+      'ano_inicio': anoInicio,
+      'ano_fin': anoFin,
+      'marca_vehiculo': marcaVehiculo,
+      'modelo_vehiculo': modeloVehiculo,
+      'motor': motor,
+      'transmision': transmision,
+      'tipo_maquinaria': tipoMaquinaria,
+      'marca_maquinaria': marcaMaquinaria,
+      'modelo_maquinaria': modeloMaquinaria,
+      'componente': componente,
+      'notas': notas,
     };
   }
 }
