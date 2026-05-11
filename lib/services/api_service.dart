@@ -216,8 +216,19 @@ class ApiService {
 
   Future<ApiResponse<ReportesDashboardModel>> getReportesDashboard({
     String periodo = 'mes',
+    DateTime? desde,
+    DateTime? hasta,
   }) async {
-    final url = Uri.parse('$baseUrl/reportes-dashboard?periodo=$periodo');
+    final query = <String, String>{'periodo': periodo};
+    if (desde != null) {
+      query['desde'] = _dateParam(desde);
+    }
+    if (hasta != null) {
+      query['hasta'] = _dateParam(hasta);
+    }
+    final url = Uri.parse(
+      '$baseUrl/reportes-dashboard',
+    ).replace(queryParameters: query);
 
     try {
       final response = await http.get(url, headers: _headers).timeout(_timeout);
@@ -260,6 +271,12 @@ class ApiService {
     } catch (e) {
       return ApiResponse(success: false, message: _connectionErrorMessage(e));
     }
+  }
+
+  String _dateParam(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
   }
 
   Future<ApiResponse<List<ProveedorRegistroModel>>> getProveedores() async {

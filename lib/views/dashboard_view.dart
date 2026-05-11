@@ -105,10 +105,49 @@ class _DashboardViewState extends State<DashboardView> {
 
   Future<List<ReporteModel>> _cargarReportes() async {
     final response = await ApiService().getReportes();
-    if (!response.success) {
-      throw Exception(response.message ?? 'No se pudieron cargar los reportes');
+    if (response.success && (response.data ?? const []).isNotEmpty) {
+      return response.data ?? const [];
     }
-    return response.data ?? const [];
+
+    final dashboardResponse = await ApiService().getReportesDashboard(
+      periodo: 'hoy',
+    );
+    if (dashboardResponse.success && dashboardResponse.data != null) {
+      return _reportesDesdeDashboard(dashboardResponse.data!);
+    }
+
+    throw Exception(
+      response.message ??
+          dashboardResponse.message ??
+          'No se pudieron cargar los reportes',
+    );
+  }
+
+  List<ReporteModel> _reportesDesdeDashboard(ReportesDashboardModel data) {
+    return [
+      ReporteModel(
+        titulo: 'Ventas',
+        valor: _formatMoney(data.ventasTotales),
+        descripcion: 'Ventas de hoy',
+        variacionPorcentaje: data.variacionVentas,
+        tendencia: (data.variacionVentas ?? 0) < 0 ? 'baja' : 'sube',
+      ),
+      ReporteModel(
+        titulo: 'Productos',
+        valor: data.topProductos.length.toString(),
+        descripcion: 'Productos con ventas',
+      ),
+      ReporteModel(
+        titulo: 'Clientes',
+        valor: data.topClientes.length.toString(),
+        descripcion: 'Clientes con compras',
+      ),
+      ReporteModel(
+        titulo: 'Proveedores',
+        valor: data.topProveedores.length.toString(),
+        descripcion: 'Proveedores con compras',
+      ),
+    ];
   }
 
   @override
@@ -275,7 +314,9 @@ class _ReportesSection extends StatefulWidget {
 
 class _ReportesSectionState extends State<_ReportesSection> {
   late Future<ReportesDashboardModel> _future;
-  String _periodo = 'mes';
+  String _periodo = 'hoy';
+  DateTime? _desde;
+  DateTime? _hasta;
 
   @override
   void initState() {
@@ -284,7 +325,11 @@ class _ReportesSectionState extends State<_ReportesSection> {
   }
 
   Future<ReportesDashboardModel> _load() async {
-    final response = await ApiService().getReportesDashboard(periodo: _periodo);
+    final response = await ApiService().getReportesDashboard(
+      periodo: _periodo,
+      desde: _periodo == 'rango' ? _desde : null,
+      hasta: _periodo == 'rango' ? _hasta : null,
+    );
     if (!response.success || response.data == null) {
       throw Exception(response.message ?? 'No se pudieron cargar los reportes');
     }
@@ -297,12 +342,105 @@ class _ReportesSectionState extends State<_ReportesSection> {
     });
   }
 
-  void _changePeriodo(String periodo) {
+  Future<void> _changePeriodo(String periodo) async {
+    if (periodo == 'rango') {
+      await _showCustomRangeDialog();
+      return;
+    }
     if (_periodo == periodo) {
       return;
     }
     setState(() {
       _periodo = periodo;
+      _desde = null;
+      _hasta = null;
+      _future = _load();
+    });
+  }
+
+  Future<void> _showCustomRangeDialog() async {
+    final now = DateTime.now();
+    DateTime localDesde = _desde ?? DateTime(now.year, now.month, 1);
+    DateTime localHasta = _hasta ?? DateTime(now.year, now.month, now.day);
+
+    final applied = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> pickDesde() async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: localDesde,
+                firstDate: DateTime(2020),
+                lastDate: DateTime(now.year + 1, 12, 31),
+              );
+              if (picked == null) {
+                return;
+              }
+              setDialogState(() {
+                localDesde = picked;
+                if (localHasta.isBefore(localDesde)) {
+                  localHasta = localDesde;
+                }
+              });
+            }
+
+            Future<void> pickHasta() async {
+              final picked = await showDatePicker(
+                context: context,
+                initialDate: localHasta,
+                firstDate: localDesde,
+                lastDate: DateTime(now.year + 1, 12, 31),
+              );
+              if (picked == null) {
+                return;
+              }
+              setDialogState(() => localHasta = picked);
+            }
+
+            return AlertDialog(
+              title: const Text('Rango personalizado'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _RangeDateButton(
+                    label: 'Desde',
+                    value: _formatDateLabel(localDesde),
+                    onTap: pickDesde,
+                  ),
+                  const SizedBox(height: 10),
+                  _RangeDateButton(
+                    label: 'Hasta',
+                    value: _formatDateLabel(localHasta),
+                    onTap: pickHasta,
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Cancelar'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Aplicar'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (applied != true) {
+      return;
+    }
+
+    setState(() {
+      _periodo = 'rango';
+      _desde = localDesde;
+      _hasta = localHasta;
       _future = _load();
     });
   }
@@ -328,8 +466,11 @@ class _ReportesSectionState extends State<_ReportesSection> {
               itemBuilder: (context) => const [
                 PopupMenuItem(value: 'hoy', child: Text('Hoy')),
                 PopupMenuItem(value: 'semana', child: Text('Esta semana')),
+                PopupMenuItem(value: 'semana_pasada', child: Text('Semana pasada')),
                 PopupMenuItem(value: 'mes', child: Text('Este mes')),
+                PopupMenuItem(value: 'mes_pasado', child: Text('Mes pasado')),
                 PopupMenuItem(value: 'anio', child: Text('Este año')),
+                PopupMenuItem(value: 'rango', child: Text('Rango personalizado')),
               ],
               child: Container(
                 padding: const EdgeInsets.symmetric(
@@ -349,12 +490,17 @@ class _ReportesSectionState extends State<_ReportesSection> {
                       color: Color(0xFF2F6FED),
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      _periodoLabel,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: const Color(0xFF2F6FED),
-                            fontWeight: FontWeight.w800,
-                          ),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 132),
+                      child: Text(
+                        _periodoLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: const Color(0xFF2F6FED),
+                              fontWeight: FontWeight.w800,
+                            ),
+                      ),
                     ),
                     const SizedBox(width: 2),
                     const Icon(
@@ -416,10 +562,67 @@ class _ReportesSectionState extends State<_ReportesSection> {
     if (_periodo == 'semana') {
       return 'Esta semana';
     }
+    if (_periodo == 'semana_pasada') {
+      return 'Semana pasada';
+    }
+    if (_periodo == 'mes_pasado') {
+      return 'Mes pasado';
+    }
     if (_periodo == 'anio') {
       return 'Este año';
     }
+    if (_periodo == 'rango' && _desde != null && _hasta != null) {
+      return '${_formatDateLabel(_desde!)} - ${_formatDateLabel(_hasta!)}';
+    }
     return 'Este mes';
+  }
+
+  String _formatDateLabel(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    return '$day/$month/${date.year}';
+  }
+}
+
+class _RangeDateButton extends StatelessWidget {
+  const _RangeDateButton({
+    required this.label,
+    required this.value,
+    required this.onTap,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0xFFE7EAF0)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.calendar_month, color: Color(0xFF2F6FED)),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '$label: $value',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+            const Icon(Icons.edit_calendar, size: 18, color: Color(0xFF667085)),
+          ],
+        ),
+      ),
+    );
   }
 }
 
