@@ -166,10 +166,10 @@ class UserModel {
       return null;
     }
     if (value is bool) {
-      return value ? 'ACTIVO' : 'INACTIVO';
+      return value ? 'Activo' : 'Inactivo';
     }
     if (value is num) {
-      return value == 1 ? 'ACTIVO' : 'INACTIVO';
+      return value == 1 ? 'Activo' : 'Inactivo';
     }
     final text = value.toString().trim();
     if (text.isEmpty) {
@@ -177,12 +177,12 @@ class UserModel {
     }
     final normalized = text.toUpperCase();
     if (normalized == 'TRUE' || normalized == '1' || normalized == 'ACTIVO') {
-      return 'ACTIVO';
+      return 'Activo';
     }
     if (normalized == 'FALSE' ||
         normalized == '0' ||
         normalized == 'INACTIVO') {
-      return 'INACTIVO';
+      return 'Inactivo';
     }
     return text;
   }

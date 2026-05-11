@@ -378,7 +378,7 @@ class ApiService {
     required int idUsuario,
     required bool activo,
   }) async {
-    final estado = activo ? 'ACTIVO' : 'INACTIVO';
+    final estado = activo ? 'Activo' : 'Inactivo';
     final body = {
       'accion': 'actualizar_estado',
       'id_usuario': idUsuario,
