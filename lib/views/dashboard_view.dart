@@ -2305,6 +2305,7 @@ class _ProductoFormState extends State<_ProductoForm> {
   late final TextEditingController _codigo;
   late final TextEditingController _precio;
   late final TextEditingController _descripcion;
+  late final TextEditingController _stock;
   String _estado = 'ACTIVO';
   int? _idCategoria;
   late Future<List<CategoriaRegistroModel>> _categoriasFuture;
@@ -2320,6 +2321,9 @@ class _ProductoFormState extends State<_ProductoForm> {
       text: producto == null ? '' : producto.precio.toStringAsFixed(2),
     );
     _descripcion = TextEditingController(text: producto?.descripcion ?? '');
+    _stock = TextEditingController(
+      text: producto == null ? '' : producto.stock.toString(),
+    );
     _estado = producto?.estado ?? 'ACTIVO';
     _idCategoria = producto?.idCategoria == 0 ? null : producto?.idCategoria;
     _categoriasFuture = _loadCategorias();
@@ -2339,6 +2343,7 @@ class _ProductoFormState extends State<_ProductoForm> {
     _codigo.dispose();
     _precio.dispose();
     _descripcion.dispose();
+    _stock.dispose();
     super.dispose();
   }
 
@@ -2367,6 +2372,31 @@ class _ProductoFormState extends State<_ProductoForm> {
       );
       return;
     }
+
+    final idProducto = widget.producto?.idProducto;
+    final stockNuevo = int.tryParse(_stock.text.trim());
+    if (idProducto != null &&
+        stockNuevo != null &&
+        stockNuevo != widget.producto!.stock) {
+      final inventarioResponse = await ApiService().ajustarInventario(
+        idProducto: idProducto,
+        stock: stockNuevo,
+      );
+      if (!mounted) {
+        return;
+      }
+      if (!inventarioResponse.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              inventarioResponse.message ?? 'No se pudo ajustar el inventario',
+            ),
+          ),
+        );
+        return;
+      }
+    }
+
     widget.onSaved();
   }
 
@@ -2425,10 +2455,9 @@ class _ProductoFormState extends State<_ProductoForm> {
             _EstadoDropdown(value: _estado, onChanged: (v) => setState(() => _estado = v)),
             if (widget.producto != null) ...[
               const SizedBox(height: 12),
-              _InfoPanel(
-                icon: Icons.inventory,
-                title: 'Stock actual',
-                message: '${widget.producto!.stock} unidades calculadas',
+              _RegistroStockEditor(
+                controller: _stock,
+                originalStock: widget.producto!.stock,
               ),
             ],
           ],
@@ -2445,6 +2474,89 @@ class _ProductoFormState extends State<_ProductoForm> {
       for (final categoria in categorias)
         if (seen.add(categoria.idCategoria)) categoria,
     ];
+  }
+}
+
+class _RegistroStockEditor extends StatelessWidget {
+  const _RegistroStockEditor({
+    required this.controller,
+    required this.originalStock,
+  });
+
+  final TextEditingController controller;
+  final int originalStock;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5FBF9),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFD6F0EA)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE1F8F2),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: const Icon(
+                  Icons.inventory,
+                  color: Color(0xFF07946E),
+                  size: 21,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Inventario',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+              ),
+              Text(
+                'Actual: $originalStock',
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: const Color(0xFF07946E),
+                      fontWeight: FontWeight.w900,
+                    ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: controller,
+            keyboardType: TextInputType.number,
+            decoration: _inputDecoration('Stock nuevo'),
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Campo requerido';
+              }
+              final stock = int.tryParse(value.trim());
+              if (stock == null || stock < 0) {
+                return 'Ingresa un stock valido';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Al guardar se registra solo la diferencia como ajuste de inventario.',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF667085),
+                ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

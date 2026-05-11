@@ -305,6 +305,21 @@ class ApiService {
     );
   }
 
+  Future<ApiResponse<void>> ajustarInventario({
+    required int idProducto,
+    required int stock,
+    String motivo = 'Ajuste desde app administradora',
+  }) {
+    return _postVoid(
+      '/registro?tipo=inventario&accion=ajustar',
+      {
+        'id_producto': idProducto,
+        'stock': stock,
+        'motivo': motivo,
+      },
+    );
+  }
+
   Future<ApiResponse<List<T>>> _getList<T>(
     String path,
     T Function(Map<String, dynamic>) fromJson,
