@@ -43,7 +43,8 @@ class AuthProvider extends ChangeNotifier {
   String? get role => _user?.role;
   bool get isAdmin => _user?.isAdmin == true;
   bool get canAccessApp =>
-      _user?.isSuperAdmin == true || _user?.isRepartidor == true;
+      ((_user?.isSuperAdmin == true) || (_user?.isRepartidor == true)) &&
+      _user?.isActivo == true;
   String? get errorMessage => _errorMessage;
   bool get isAuthenticated => _status == AuthStatus.authenticated;
 
@@ -105,6 +106,13 @@ class AuthProvider extends ChangeNotifier {
     if (user?.isSuperAdmin != true && user?.isRepartidor != true) {
       _errorMessage =
           'Acceso permitido solo para Super Admin y Repartidores.';
+      _status = AuthStatus.unauthenticated;
+      await _clearSession();
+      notifyListeners();
+      return false;
+    }
+    if (user?.isActivo != true) {
+      _errorMessage = 'Usuario inactivo. Contacta al Super Admin.';
       _status = AuthStatus.unauthenticated;
       await _clearSession();
       notifyListeners();
