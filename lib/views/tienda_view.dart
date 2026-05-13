@@ -15,7 +15,7 @@ class TiendaView extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('NAYLEX Store'),
+        title: const Text('Tech-Metrics'),
         actions: [
           if (authProvider.isAuthenticated)
             IconButton(

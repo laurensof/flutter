@@ -39,7 +39,7 @@ class FirebasePushService {
 
     FirebaseMessaging.onMessage.listen((message) {
       final notification = message.notification;
-      final title = notification?.title ?? 'NAYLEX Store';
+      final title = notification?.title ?? 'Tech-Metrics';
       final body = notification?.body ?? 'Tienes una nueva alerta.';
       NotificationService.instance.showPushNotification(
         title: title,

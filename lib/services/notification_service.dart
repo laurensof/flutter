@@ -82,7 +82,7 @@ class NotificationService {
 
     await _plugin.show(
       1001,
-      'Stock bajo en NAYLEX Store',
+      'Stock bajo en Tech-Metrics',
       body,
       const NotificationDetails(android: androidDetails),
       payload: 'stock_alerts',
@@ -105,7 +105,7 @@ class NotificationService {
       importance: Importance.high,
       priority: Priority.high,
       category: AndroidNotificationCategory.reminder,
-      ticker: 'NAYLEX Store',
+      ticker: 'Tech-Metrics',
       enableVibration: true,
       playSound: true,
     );

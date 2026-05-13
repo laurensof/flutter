@@ -114,7 +114,7 @@ class _LoginViewState extends State<LoginView> {
                   ),
                   const SizedBox(height: 16),
                   const Text(
-                    'NAYLEX Store',
+                    'Tech-Metrics',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 28,
